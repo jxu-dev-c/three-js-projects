@@ -17,15 +17,15 @@
         "progress": 25
       },
       {
-        "step": "Loading Meshes and Texture",
+        "step": "Streaming Sector Textures",
         "progress": 50
       },
       {
-        "step": "Loading Meshes and Texture",
+        "step": "Building Orbital Sites",
         "progress": 60
       },
       {
-        "step": "Loading Meshes and Texture",
+        "step": "Plotting System Map",
         "progress": 75
       },
       {
@@ -41,7 +41,6 @@
         "progress": 90
       }
     ],
-
     "Navigation": [
       {
         "icon": "solar:star-circle-bold",
@@ -73,74 +72,6 @@
         "y": 0,
         "z": 0
       },
-      "satelites": [
-        {
-          "objectName": "Axios Station",
-          "sate_id": "1",
-          "objectType": "satelite",
-          "objectSize": 1,
-          "objectPosition": {
-            "x": 5,
-            "y": 4,
-            "z": -25
-          }
-        },
-        {
-          "objectName": "Orion Lab",
-          "objectType": "satelite",
-          "sate_id": "2",
-          "objectSize": 1,
-          "objectPosition": {
-            "x": 16,
-            "y": -10,
-            "z": -33
-          }
-        },
-        {
-          "objectName": "Atmos Space Resort",
-          "objectType": "satelite",
-          "sate_id": "3",
-          "objectSize": 1,
-          "objectPosition": {
-            "x": 5,
-            "y": -20,
-            "z": -30
-          }
-        },
-        {
-          "objectName": "Atmos Space Resort",
-          "objectType": "satelite",
-          "sate_id": "4",
-          "objectSize": 1,
-          "objectPosition": {
-            "x": 26,
-            "y": 0,
-            "z": -13
-          }
-        },
-        {
-          "objectName": "Atmos Space Resort",
-          "objectType": "satelite",
-          "sate_id": "5",
-          "objectSize": 1,
-          "objectPosition": {
-            "x": 18,
-            "y": -5,
-            "z": -20
-          }
-        },
-        {
-          "objectName": "Atmos Space Resort",
-          "objectType": "satelite",
-          "sate_id": "6",
-          "objectSize": 1,
-          "objectPosition": {
-            "x": 20,
-            "y": 5,
-            "z": -20
-          }
-        }
-      ],
       "copies": {
         "tagline": "Our Home, Our Launchpad",
         "subtitle": "Where Our Journey Begins",
@@ -148,6 +79,71 @@
         "call_to_action": "<a href='#'class='link-styled text-light fs-6 pe-all'>Our Earth Orbitals</a>",
         "overall_introduction_location": "Earth, the cradle of humanity and the springboard for our cosmic ventures, is where Cosmodyn's journey begins. Our stations orbiting Earth represent the cutting edge of human ingenuity and ambition, marking the first steps in our quest to expand human presence across the solar system.",
         "stations_detail_description": "From the bustling <a class='link-styled inline'>Axios Lab</a>, a hub of innovation and engineering, to the luxurious <a class='link-styled inline'>Arikona Space Resort</a>, where space tourism reaches new heights, and the state-of-the-art <a class='link-styled inline'>Cosmodyn Shipyard</a>, where the vessels of tomorrow are built today, Cosmodyn's Earth stations are at the forefront of our mission to bring the stars closer to humanity."
+      },
+      "stations": [
+        {
+          "id": "STN-01",
+          "name": "Axios Lab",
+          "type": "modularLab",
+          "kind": "orbital",
+          "orbit": {
+            "radius": 33,
+            "inclination": 14,
+            "roll": -18,
+            "phase": 30,
+            "speed": 0.08
+          },
+          "readout": {
+            "alt": "412 KM",
+            "status": "ONLINE",
+            "class": "R&D"
+          },
+          "description": "Cosmodyn's orbital R&D hub. Microgravity fabrication bays and propulsion test stands support every programme from low orbit to the outer planets."
+        },
+        {
+          "id": "STN-02",
+          "name": "Arikona Space Resort",
+          "type": "ringResort",
+          "kind": "orbital",
+          "orbit": {
+            "radius": 38,
+            "inclination": -10,
+            "roll": 12,
+            "phase": 200,
+            "speed": 0.05
+          },
+          "readout": {
+            "alt": "1,200 KM",
+            "status": "OPEN",
+            "class": "TOURISM"
+          },
+          "description": "A spin-gravity hospitality ring with Earth-facing observation decks, where space tourism reaches new heights."
+        },
+        {
+          "id": "STN-03",
+          "name": "Cosmodyn Shipyard",
+          "type": "shipyard",
+          "kind": "orbital",
+          "orbit": {
+            "radius": 44,
+            "inclination": 22,
+            "roll": 4,
+            "phase": 120,
+            "speed": 0.035
+          },
+          "readout": {
+            "alt": "GEO",
+            "status": "BUILD",
+            "class": "SHIPYARD"
+          },
+          "description": "Geostationary dry dock where the vessels of tomorrow are built today, currently fitting out a deep-space transport hull."
+        }
+      ],
+      "hud": {
+        "sector": "01",
+        "code": "SOL-3",
+        "operation": "Cradle",
+        "coordinates": "1.000 AU · LEO — GEO"
       }
     },
     {
@@ -167,7 +163,71 @@
         "years": "2018 - 2031 <small>(Phase 1)</small>",
         "call_to_action": "<a href='#'class='link-styled text-light fs-6 pe-all'>Traverse Our Lunar Sites</a>",
         "overall_introduction_location": "<p>The Moon, Earth's closest celestial neighbor, serves as a critical outpost for humanity's expansion into the solar system. Cosmodyn's lunar operations lay the groundwork for sustainable exploration and utilization of space resources.</p>",
-        "stations_detail_description": "The <a class='link-styled inline'>Orion Lunar Satellite Network</a> (OLSN) ensures robust communication across lunar missions, while the <a class='link-styled inline'>Tianmen Hub</a> facilitates seamless travel between Earth and the Moon. Our <a class='link-styled inline'>Radken Mines</a> in Tranqulity Sea pioneers the extraction of essential resources, driving forward our vision of a self-sustaining human presence beyond Earth."
+        "stations_detail_description": "The <a class='link-styled inline'>Orion Lunar Satellite Network</a> (OLSN) ensures robust communication across lunar missions, while the <a class='link-styled inline'>Tianmen Hub</a> facilitates seamless travel between Earth and the Moon. Our <a class='link-styled inline'>Radken Mines</a> in the Sea of Tranquility pioneers the extraction of essential resources, driving forward our vision of a self-sustaining human presence beyond Earth."
+      },
+      "stations": [
+        {
+          "id": "LNA-01",
+          "name": "Orion Lunar Satellite Network",
+          "type": "relaySat",
+          "kind": "orbital",
+          "count": 3,
+          "links": true,
+          "scale": 0.9,
+          "orbit": {
+            "radius": 22,
+            "inclination": 25,
+            "roll": -10,
+            "phase": 0,
+            "speed": 0.12
+          },
+          "readout": {
+            "alt": "3,000 KM",
+            "status": "LINKED",
+            "class": "COMMS"
+          },
+          "description": "Three-satellite relay constellation (OLSN) providing continuous communication coverage across every lunar mission."
+        },
+        {
+          "id": "LNA-02",
+          "name": "Tianmen Hub",
+          "type": "transferHub",
+          "kind": "orbital",
+          "orbit": {
+            "radius": 28,
+            "inclination": -8,
+            "roll": 15,
+            "phase": 150,
+            "speed": 0.06
+          },
+          "readout": {
+            "alt": "EML-1",
+            "status": "ONLINE",
+            "class": "TRANSIT"
+          },
+          "description": "Transfer station at the Earth–Moon L1 point, handling crew and cargo transit between Earth orbit and the lunar surface."
+        },
+        {
+          "id": "LNA-03",
+          "name": "Radken Mines",
+          "type": "surfaceSite",
+          "kind": "surface",
+          "lat": 8.5,
+          "lon": 31.4,
+          "scale": 1.4,
+          "readout": {
+            "alt": "MARE TRANQ.",
+            "status": "ACTIVE",
+            "class": "MINING"
+          },
+          "description": "Regolith extraction and processing in the Sea of Tranquility, producing the essential resources for a self-sustaining lunar presence."
+        }
+      ],
+      "hud": {
+        "sector": "02",
+        "code": "SOL-3A",
+        "operation": "Silver Gate",
+        "coordinates": "08.5°N 31.4°E · MARE TRANQ."
       }
     },
     {
@@ -177,7 +237,7 @@
       "objectSize": 1,
       "objectNum": 0,
       "objectPosition": {
-        "x": 18,
+        "x": 0,
         "y": 0,
         "z": 15
       },
@@ -191,6 +251,34 @@
         "home_page_subheadline": "<p>Our 100 Year Vision</p>",
         "home_page_intro": "Since our inception in 1976, we have pioneered orbital construction technologies and projects aimed at expanding human horizons beyond Earth.</br> </br>Specializing in building space station, transportation, exploration, mining, tourism, and shipbuilding, Cosmodyn is committed to pushing the boundaries of possibility.",
         "home_page_outtro": "Join us on our journey as we continue to shape the future of space exploration, one mission at a time."
+      },
+      "stations": [
+        {
+          "id": "PRX-01",
+          "name": "Generational Ship",
+          "type": "generationShip",
+          "kind": "orbital",
+          "scale": 0.8,
+          "orbit": {
+            "radius": 38,
+            "inclination": 6,
+            "roll": -6,
+            "phase": 60,
+            "speed": 0.03
+          },
+          "readout": {
+            "alt": "HIGH ORBIT",
+            "status": "ASSEMBLY",
+            "class": "ARK"
+          },
+          "description": "The 100-year project: a multi-generation vessel under assembly, designed to carry a self-sustaining population to Proxima Centauri B."
+        }
+      ],
+      "hud": {
+        "sector": "00",
+        "code": "PRX-B",
+        "operation": "Genesis Ark",
+        "coordinates": "RA 14H29M43S · DEC -62°40′46″"
       }
     },
     {
@@ -211,6 +299,51 @@
         "call_to_action": "<a href='#'class='link-styled text-light fs-6 pe-all'>Visit Our Jupiter Ventures</a>",
         "overall_introduction_location": "<p>Jupiter, the giant of our solar system, symbolizes the vast potential and challenges of space exploration. Cosmodyn's operations around Jupiter aim to unlock the secrets of this majestic planet and pave the way for deeper space missions.</p>",
         "stations_detail_description": "The <a class='link-styled inline'>Aristotle Expedition Base</a> on Europa serves as a critical outpost for exploration and research, while the <a class='link-styled inline'>Juno Probe Fleet</a> provides unparalleled insights into Jupiter's atmosphere and magnetosphere. These initiatives are crucial steps in expanding humanity's understanding and presence in the outer solar system."
+      },
+      "stations": [
+        {
+          "id": "JOV-01",
+          "name": "Aristotle Expedition Base",
+          "type": "surfaceSite",
+          "kind": "surface",
+          "on": "europa",
+          "lat": 20,
+          "lon": 0,
+          "scale": 0.55,
+          "readout": {
+            "alt": "EUROPA",
+            "status": "ACTIVE",
+            "class": "RESEARCH"
+          },
+          "description": "Research outpost on Europa's ice shell, a critical base for exploring the moon and the outer solar system."
+        },
+        {
+          "id": "JOV-02",
+          "name": "Juno Probe Fleet",
+          "type": "relaySat",
+          "kind": "orbital",
+          "count": 3,
+          "orbit": {
+            "radius": 33,
+            "inclination": 15,
+            "roll": 70,
+            "phase": 0,
+            "speed": 0.09,
+            "planeSpread": 28
+          },
+          "readout": {
+            "alt": "POLAR",
+            "status": "SURVEY",
+            "class": "PROBE"
+          },
+          "description": "A fleet of probes on staggered polar orbits, mapping Jupiter's atmosphere and magnetosphere."
+        }
+      ],
+      "hud": {
+        "sector": "03",
+        "code": "SOL-5",
+        "operation": "Far Horizon",
+        "coordinates": "5.203 AU · JOVIAN SYS."
       }
     },
     {
@@ -219,8 +352,8 @@
       "objectSize": 1,
       "objectPosition": {
         "x": 0,
-        "y": -13,
-        "z": -80
+        "y": -8,
+        "z": -108
       }
     },
     {

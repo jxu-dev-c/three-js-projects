@@ -4,14 +4,16 @@ varying vec3 eyeVector;
 uniform float atmOpacity;
 uniform float atmPowFactor;
 uniform float atmMultiplier;
+uniform vec3 atmTint;
 
 void main() {
     // Starting from the atmosphere edge, dotP would increase from 0 to 1
-    float dotP = dot( vNormal, eyeVector );
+    // clamp: pow() of a negative base is NaN, which bloom would smear across the frame
+    float dotP = max(dot( vNormal, eyeVector ), 0.0);
     // This factor is to create the effect of a realistic thickening of the atmosphere coloring
     float factor = pow(dotP, atmPowFactor) * atmMultiplier;
     // Adding in a bit of dotP to the color to make it whiter while thickening
-    vec3 atmColor = vec3(0.35 + dotP/4.5, 0.35 + dotP/4.5, 1.0);
+    vec3 atmColor = atmTint + vec3(dotP / 4.5);
     // use atmOpacity to control the overall intensity of the atmospheric color
     gl_FragColor = vec4(atmColor, atmOpacity) * factor;
 

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { initThree } from "../initThree";
 import * as THREE from "three";
 import "./index.css";
@@ -9,41 +9,60 @@ import skyboxTop from "../../asset/skybox/skybox-top.png";
 import skyboxBottom from "../../asset/skybox/skybox-bottom.png";
 import skyboxFront from "../../asset/skybox/skybox-front.png";
 import skyboxBack from "../../asset/skybox/skybox-back.png";
-import NavBar from "./NavBar";
-import NavItemBar from "./NavItemBar";
 import UI_DATA from "./UI_DATA.json";
-// import { AtomModel } from "./util/model/Atom";
 import { HomePlanet } from "./util/model/PlanetHome";
 import { Moon } from "./util/model/Moon";
 import { Earth } from "./util/model/Earth";
 import { JupiterPlanet } from "./util/model/Jupiter";
 import { convertMouseCoordinate } from "./util/camera/camera";
-import { Tween } from "@tweenjs/tween.js";
-import Loader from "../../asset/UI/loader_custom.svg";
+import { CameraRig } from "./util/camera/cameraRig";
+import {
+  pickStation,
+  StationData,
+  StationEntry,
+  StationRegistry,
+  STATION_SELECT_EVENT,
+} from "./util/tactical/stations";
+import { COLOR } from "./util/tactical/palette";
+import {
+  Body,
+  buildSystemLayout,
+  createSystemMarkers,
+  formatDistance,
+  SECTOR_PREVIEW_EVENT,
+  SECTOR_SELECT_EVENT,
+  transitDuration,
+} from "./util/tactical/systemMap";
+import { createLazyPlanet, PLANET_LOADED_EVENT } from "./util/tactical/lazyPlanet";
 
-// TODO: Build Task
-// change the favicon
-// change the title
-// optimize the image
-// add a loading screen
-// deploy to netlify
+// share decoded images between loaders (Europa reuses the Moon's base map)
+THREE.Cache.enabled = true;
 
 // loader
 import { loadTexture } from "./util/texture/loadTexture";
 
-// content blocks
-import HomeHeader from "./pages/home-headline";
-import SectionContent from "./pages/section-content";
+// HUD
+import HudHeader from "./hud/HudHeader";
+import HudFrame from "./hud/HudFrame";
+import BriefingPanel from "./hud/BriefingPanel";
+import OpWindow from "./hud/OpWindow";
+import BootLoader from "./hud/BootLoader";
+import TransitBanner from "./hud/TransitBanner";
 
-// Animation
-import { AnimateMesh } from "./util/animation/home-planet-animation";
+interface Transit {
+  id: number;
+  from: Body;
+  to: Body;
+  distance: string;
+  duration: number;
+  // flight finished but the destination's textures are still streaming in
+  acquiring?: boolean;
+}
 
 export interface IAppProps {}
 
 export default function SpaceShipShowcase(props: IAppProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const mouseInteractionAreaRef = useRef<HTMLDivElement>(null);
   const [isInited, setIsInited] = useState(false);
   const [mouseMoveCoordinate, setMouseMoveCoordinate] = useState({
     x: 0,
@@ -52,30 +71,20 @@ export default function SpaceShipShowcase(props: IAppProps) {
   const [loadingProgress, setLoadingProgress] = useState<any>({});
   const [activeMesh, setActiveMesh] = useState<number>(0);
   const [renderInstance, setRenderInstance] = useState<any>(null);
-  const [hideNav, setHideNav] = useState(false);
+  const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [transit, setTransit] = useState<Transit | null>(null);
+  // bumps when a planet finishes streaming in, so its site registry re-renders
+  const [loadedTick, setLoadedTick] = useState(0);
+  const planetsRef = useRef<THREE.Group[]>([]);
+  const rigRef = useRef<CameraRig | null>(null);
+  const layoutRef = useRef<Record<number, Body>>(buildSystemLayout());
+  const markersRef = useRef<ReturnType<typeof createSystemMarkers> | null>(null);
+  const previousSectorRef = useRef<number | null>(null);
+  // light comes from the departure star until mid-flight, then the destination's
+  const starsRef = useRef({ from: layoutRef.current[0].star, to: layoutRef.current[0].star });
 
-  const unmountDelay = 300;
-
-  function sleep(ms: number) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
-  const fetchPlanetContent = (type: string, activeNum: number) => {
-    const data: any = UI_DATA["3D"].find(
-      (item) => item.objectNum === activeNum
-    );
-    if (type === "subtitle") {
-      if (data?.copies?.subtitle) {
-        return data?.copies?.subtitle;
-      } else {
-        return null;
-      }
-    } else {
-      //
-      const result = data?.copies;
-      return result[type];
-    }
-  };
+  const fetchPlanetObject = (activeNum: number): any =>
+    UI_DATA["3D"].find((item) => item.objectNum === activeNum);
 
   const calculateMeshRotation = (event: MouseEvent) => {
     if ((window as any).lastMouseX) {
@@ -83,77 +92,51 @@ export default function SpaceShipShowcase(props: IAppProps) {
       return diff / 1000;
     }
   };
-  const NAV_DATA: any = [
-    {
-      icon: "solar:star-circle-bold",
-      title: "Home",
-      onClick: () => {
-        setActiveMesh(0);
-      },
-    },
-    {
-      icon: "mdi:earth",
-      title: "Terra",
-      onClick: () => {
-        setActiveMesh(1);
-      },
-    },
-    {
-      icon: "hugeicons:moon",
-      title: "Luna",
-      onClick: () => {
-        setActiveMesh(2);
-      },
-    },
-    {
-      icon: "hugeicons:jupiter",
-      title: "Jupiter",
-      onClick: () => {
-        setActiveMesh(3);
-      },
-    },
-  ];
 
-  // calculate adjusted position
-  const getAdjustedPosition = (object: any) => {
-    const screenCoordinateMultiplier = 1 / 1000;
-
-    const adjustedX =
-      (object?.objectPosition?.x as number) *
-      window.innerWidth *
-      screenCoordinateMultiplier;
-    const adjustedY =
-      (object?.objectPosition?.y as number) *
-      window.innerHeight *
-      screenCoordinateMultiplier;
-    return {
-      Px: adjustedX,
-      Py: adjustedY,
-      Pz: object?.objectPosition.z,
-    };
-  };
+  const NAV_DATA = UI_DATA["2D"].Navigation;
 
   // Get Data
-  const HomePlanetObject = UI_DATA["3D"].find(
+  const HomePlanetObject: any = UI_DATA["3D"].find(
     (item) => item.objectName === "HomePlanet"
   );
-  const MoonPlanetObject = UI_DATA["3D"].find(
+  const MoonPlanetObject: any = UI_DATA["3D"].find(
     (item) => item.objectName === "Moon"
   );
-  const EarthPlanetObject = UI_DATA["3D"].find(
+  const EarthPlanetObject: any = UI_DATA["3D"].find(
     (item) => item.objectName === "Earth"
   );
-  const JupiterPlanetObject = UI_DATA["3D"].find(
+  const JupiterPlanetObject: any = UI_DATA["3D"].find(
     (item) => item.objectName === "Jupiter"
-  );
-  const CameraObject = UI_DATA["3D"].find(
-    (item) => item.objectName === "Camera"
   );
   const LightingObject = UI_DATA["3D"].find(
     (item) => item.objectName === "Sunlight"
   );
 
   const LoadingObject = UI_DATA["2D"].Loader;
+
+  // Free screen regions for camera framing. Panel geometry mirrors index.css:
+  // desktop side panel (right 40px, width min(520px, 100vw - 80px), bottom
+  // 76px) and mobile bottom sheet (52vh tall, 16px from the bottom).
+  const MOBILE_BREAKPOINT = 992;
+  function updateFramingInsets() {
+    const rig = rigRef.current;
+    if (!rig) return;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const header = document.querySelector(".hud-header")?.getBoundingClientRect().bottom ?? 100;
+    if (w < MOBILE_BREAKPOINT) {
+      const opWindow = document.querySelector(".op-window")?.getBoundingClientRect().height ?? 0;
+      rig.setInsets({
+        overview: { top: header, right: 0, bottom: opWindow ? opWindow + 24 : 0, left: 0 },
+        focus: { top: header + 8, right: 0, bottom: h * 0.52 + 24, left: 0 },
+      });
+    } else {
+      rig.setInsets({
+        overview: { top: header, right: 0, bottom: 60, left: 0 },
+        focus: { top: header, right: Math.min(520, w - 80) + 60, bottom: 76, left: 0 },
+      });
+    }
+  }
 
   useEffect(() => {
     if (canvasRef.current && !isInited) {
@@ -164,18 +147,6 @@ export default function SpaceShipShowcase(props: IAppProps) {
         history.scrollRestoration = "manual";
       }
       const canvas = canvasRef.current;
-      const content = contentRef.current;
-
-      document.addEventListener("scroll", () => {
-        // get scorll position
-        const scrollPosition = document.documentElement.scrollTop;
-        if (scrollPosition >= 100) {
-          setHideNav(true);
-        }
-        if (scrollPosition < 20) {
-          setHideNav(false);
-        }
-      });
 
       const scene = new THREE.Scene();
       (async function () {
@@ -192,70 +163,74 @@ export default function SpaceShipShowcase(props: IAppProps) {
           "cube"
         );
         scene.background = texture;
+        // dim the starfield so the line work reads first
+        scene.backgroundIntensity = 0.55;
         setLoadingProgress(LoadingObject[1]);
         const width = window.innerWidth;
         const height = window.innerHeight;
+        // far plane spans the whole system map (Proxima b sits ~4,500 units out)
         const camera = new THREE.PerspectiveCamera(
           50,
           width / height,
-          0.1,
-          500
+          0.5,
+          20000
         );
-        camera.position.z = CameraObject?.objectPosition.z || 5;
-        camera.position.x = CameraObject?.objectPosition.x || 0;
-        camera.position.y = CameraObject?.objectPosition.y || 0;
-        camera.lookAt(4, 5, 0);
+        const layout = layoutRef.current;
+        const start = layout[activeMesh];
+        const rig = new CameraRig(camera, start.cameraPosition, start.position);
+        rigRef.current = rig;
+        updateFramingInsets();
         setLoadingProgress(LoadingObject[2]);
-        // mesh position
-        // set Mesh Positions
 
-        // import mesh
-        const HomePlanetMesh = await HomePlanet(
-          getAdjustedPosition(HomePlanetObject)
-        );
+        // Bodies start as procedural stand-ins; full textures and sites stream in
+        // only when a sector is visited (or hovered), never all up front.
+        const ORIGIN = { Px: 0, Py: 0, Pz: 0 };
+        const meshList = [
+          createLazyPlanet({
+            body: layout[0],
+            tint: new THREE.Color(0x3d4a52),
+            load: () => HomePlanet(ORIGIN, HomePlanetObject?.stations as StationData[]),
+          }),
+          createLazyPlanet({
+            body: layout[1],
+            tint: new THREE.Color(0x2e4a6b),
+            load: () => Earth(ORIGIN, EarthPlanetObject?.stations as StationData[]),
+          }),
+          createLazyPlanet({
+            body: layout[2],
+            tint: new THREE.Color(0x5a5f66),
+            load: () => Moon(ORIGIN, MoonPlanetObject?.stations as StationData[]),
+          }),
+          createLazyPlanet({
+            body: layout[3],
+            tint: new THREE.Color(0x6b5a4c),
+            load: () => JupiterPlanet(ORIGIN, JupiterPlanetObject?.stations as StationData[]),
+          }),
+        ];
+        planetsRef.current = meshList;
+        meshList.forEach((mesh, num) => mesh.userData.setDetail(num === activeMesh));
 
+        // only the starting sector is fetched during boot
+        await meshList[activeMesh].userData.ensureLoaded();
         setLoadingProgress(LoadingObject[3]);
-
-        const moonMesh = await Moon(getAdjustedPosition(MoonPlanetObject));
-
         setLoadingProgress(LoadingObject[4]);
 
-        const earthMesh = await Earth(getAdjustedPosition(EarthPlanetObject));
+        markersRef.current = createSystemMarkers(scene, layout);
+        markersRef.current.setActive(activeMesh);
 
-        const jupiterMesh = await JupiterPlanet(
-          getAdjustedPosition(JupiterPlanetObject)
-        );
-
-        // // Hide all Mesh
-        // HomePlanetMesh.visible = true;
-        // moonMesh.visible = true;
-        // earthMesh.visible = true;
-
-        const meshList = [HomePlanetMesh, earthMesh, moonMesh, jupiterMesh];
-
-        meshList.forEach((mesh) => {
-          mesh.visible = false;
-        });
-
-        // camera lookat => subtract 10 from z
-        // light directly from the back, also ambient light
+        // sunlight aims from the current star at whatever the camera is looking at
         const light = new THREE.DirectionalLight(
           0xffffff,
           LightingObject?.objectIntensity || 0
         );
-        // light.position.set(0, 0, -30);
-        light.position.set(
-          LightingObject?.objectPosition.x || 0,
-          LightingObject?.objectPosition.y || 0,
-          LightingObject?.objectPosition.z || 0
-        );
-        // const ambientLight = new THREE.AmbientLight(0xffffff, 5);
-        scene.add(light);
-        // scene.add(ambientLight);
-        //   mouse pointer anitmation
-        // cone: y => -12 to 12, x => -12 to 12
-        // TODO: move this animation to another useEffect hook
-        // mesh.position.y = 12;
+        scene.add(light, light.target);
+        const updateLight = () => {
+          const { from, to } = starsRef.current;
+          light.position.copy(rig.progress < 0.5 ? from : to);
+          light.target.position.copy(rig.lookTarget);
+        };
+        // faint steel fill so the night side keeps its silhouette
+        scene.add(new THREE.AmbientLight(COLOR.steel, 0.12));
         setLoadingProgress(LoadingObject[5]);
         const renderInstance = await initThree({
           scene,
@@ -267,16 +242,18 @@ export default function SpaceShipShowcase(props: IAppProps) {
           showPerformance: false,
           RotateControls: false,
           axisHelper: false,
+          bloom: true,
+          labels: true,
+          animation: () => {
+            rig.update();
+            updateLight();
+          },
         });
         setLoadingProgress(LoadingObject[6]);
-        // await for 1s
 
         window.addEventListener("resize", () => {
-          // const width = window.innerWidth;
-          // const height = window.innerHeight;
-          // renderer.setSize(width, height);
-          // camera.aspect = width / height;
-          camera.updateProjectionMatrix();
+          renderInstance.resize(window.innerWidth, window.innerHeight);
+          updateFramingInsets();
         });
 
         document.addEventListener("mousemove", (event) => {
@@ -285,28 +262,19 @@ export default function SpaceShipShowcase(props: IAppProps) {
             return;
           }
           const { x, y } = convertMouseCoordinate(event);
-          camera.lookAt(x * -3, y * -3, 0);
+          rig.mouse = { x, y };
           setMouseMoveCoordinate({ x, y });
         });
 
-        document.addEventListener("mousedown", (event) => {
-          // change cursor
-          mouseInteractionAreaRef.current?.classList.add("cursor-none");
+        canvas.addEventListener("mousedown", () => {
+          canvas.classList.add("cursor-none");
         });
 
-        document.addEventListener("mouseup", (event) => {
-          // change cursor
-          mouseInteractionAreaRef.current?.classList.remove("cursor-none");
+        document.addEventListener("mouseup", () => {
+          canvas.classList.remove("cursor-none");
         });
         setRenderInstance(renderInstance);
         setLoadingProgress(LoadingObject[7]);
-        if (meshList[activeMesh as number]) {
-          meshList[activeMesh as number].visible = true;
-        } else {
-          console.error(
-            "Active Mesh not found, check if the model is loaded for this button"
-          );
-        }
         setIsInited(true);
       })();
     }
@@ -318,19 +286,43 @@ export default function SpaceShipShowcase(props: IAppProps) {
       return;
     }
 
-    const mouseAreaRef = mouseInteractionAreaRef.current;
+    const mouseAreaRef = canvasRef.current;
     const currentMesh = renderInstance.mesh[activeMesh as number];
-    const position_start = getAdjustedPosition(HomePlanetObject);
-    currentMesh.position.set(
-      position_start.Px,
-      position_start.Py,
-      position_start.Pz
+    const layout = layoutRef.current;
+    renderInstance.mesh.forEach((mesh: THREE.Object3D, num: number) =>
+      mesh.userData.setDetail(num === activeMesh)
     );
+    markersRef.current?.setActive(activeMesh);
 
-    (async function () {
-      await sleep(unmountDelay * 1.01);
-      currentMesh.visible = true;
-    })();
+    // fly from the previous sector to this one across the system map, streaming
+    // the destination's textures in while the camera is in flight
+    let transitTimer: number | undefined;
+    let cancelled = false;
+    const previous = previousSectorRef.current;
+    previousSectorRef.current = activeMesh;
+    if (previous !== null && previous !== activeMesh && rigRef.current) {
+      const from = layout[previous];
+      const to = layout[activeMesh];
+      const duration = transitDuration(from, to);
+      starsRef.current = { from: from.star, to: to.star };
+      rigRef.current.travelTo(to.position, to.cameraPosition, duration);
+      const id = Date.now();
+      setTransit({ id, from, to, distance: formatDistance(from, to), duration });
+      const arrival = new Promise<void>((resolve) => {
+        transitTimer = window.setTimeout(resolve, duration * 1000);
+      });
+      const loaded = currentMesh.userData.ensureLoaded();
+      arrival.then(() => {
+        if (!cancelled && !currentMesh.userData.isLoaded) {
+          setTransit((t) => (t && t.id === id ? { ...t, acquiring: true } : t));
+        }
+      });
+      Promise.all([arrival, loaded]).then(() => {
+        if (!cancelled) setTransit((t) => (t && t.id === id ? null : t));
+      });
+    } else {
+      currentMesh.userData.ensureLoaded();
+    }
 
     const mouseDragEventHandler = async (event: MouseEvent) => {
       if (event.buttons === 1) {
@@ -347,153 +339,161 @@ export default function SpaceShipShowcase(props: IAppProps) {
       }
     };
 
-    let animationFrame: number;
-
-    function loopRotateAnimation() {
-      if (currentMesh.children[1]) {
-        currentMesh.children[0].rotation.y += 0.0004;
-        currentMesh.children[1].rotation.y += 0.001;
-      } else {
-        currentMesh.rotation.y += 0.002;
-      }
-      animationFrame = requestAnimationFrame(loopRotateAnimation);
-    }
-
     mouseAreaRef?.addEventListener("mousemove", mouseDragEventHandler);
 
-    let animations: Tween<THREE.Euler | THREE.Vector3>[] = [];
-    // Animation
-    (async function () {
-      await new Promise<void>((resolve) => {
-        setTimeout(() => {
-          const firstMove = AnimateMesh(currentMesh, "position", -28, 0, "z");
-          const secondMove = AnimateMesh(
-            currentMesh,
-            "rotation",
-            Math.PI * 0.3,
-            0,
-            "y",
-            loopRotateAnimation
-          );
-          animations.push(firstMove, secondMove);
-        }, 200);
-        resolve();
-      });
-    })();
+    // a click (not a drag) on or near a site focuses it; empty space clears focus
+    let downAt = { x: 0, y: 0 };
+    const onPointerDown = (event: MouseEvent) => {
+      downAt = { x: event.clientX, y: event.clientY };
+    };
+    const onClick = (event: MouseEvent) => {
+      if (Math.hypot(event.clientX - downAt.x, event.clientY - downAt.y) > 5) return;
+      setFocusedId(
+        pickStation(currentMesh.userData.stations, renderInstance.camera, event.clientX, event.clientY)
+      );
+    };
+    mouseAreaRef?.addEventListener("mousedown", onPointerDown);
+    mouseAreaRef?.addEventListener("click", onClick);
 
     return () => {
-      AnimateMesh(currentMesh, "position", unmountDelay, 0, "x", () => {
-        currentMesh.visible = false;
-        mouseAreaRef?.removeEventListener("mousemove", mouseDragEventHandler);
-        (window as any).lastMouseX = null;
-        // remove animation
-        animations.forEach((animation) => {
-          animation.stop();
-        });
-        cancelAnimationFrame(animationFrame);
-      });
+      cancelled = true;
+      window.clearTimeout(transitTimer);
+      mouseAreaRef?.removeEventListener("mousedown", onPointerDown);
+      mouseAreaRef?.removeEventListener("click", onClick);
+      mouseAreaRef?.removeEventListener("mousemove", mouseDragEventHandler);
+      (window as any).lastMouseX = null;
     };
   }, [activeMesh, isInited]);
+
+  // site focus: camera framing, turntable spin, label dimming
+  useEffect(() => {
+    if (!isInited) return;
+    updateFramingInsets();
+    const group = renderInstance.mesh[activeMesh];
+    if (rigRef.current) rigRef.current.overviewRadius = group.userData.radius * 1.15;
+    const entry: StationEntry | undefined = focusedId
+      ? group.userData.stations.get(focusedId)
+      : undefined;
+    group.userData.setFocus(entry ? focusedId : null);
+    rigRef.current?.setFocus(
+      entry ? { object: entry.objects[0], radius: entry.radius, planet: group } : null
+    );
+    document.querySelector(".label-layer")?.classList.toggle("is-focusing", !!entry);
+    return () => group.userData.setFocus(null);
+    // transit is a dependency so mobile insets re-measure once the op window returns
+  }, [focusedId, activeMesh, isInited, transit]);
+
+  useEffect(() => {
+    const onSelect = (event: Event) => setFocusedId((event as CustomEvent).detail.id);
+    // long-range beacons on other planets jump to that sector
+    const onSector = (event: Event) => {
+      setFocusedId(null);
+      setActiveMesh((event as CustomEvent).detail.num);
+    };
+    window.addEventListener(SECTOR_SELECT_EVENT, onSector);
+    // hovering a tab or beacon starts streaming that planet early
+    const onPreview = (event: Event) =>
+      planetsRef.current[(event as CustomEvent).detail.num]?.userData.ensureLoaded();
+    const onLoaded = () => setLoadedTick((n) => n + 1);
+    window.addEventListener(SECTOR_PREVIEW_EVENT, onPreview);
+    window.addEventListener(PLANET_LOADED_EVENT, onLoaded);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFocusedId(null);
+    };
+    window.addEventListener(STATION_SELECT_EVENT, onSelect);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener(STATION_SELECT_EVENT, onSelect);
+      window.removeEventListener(SECTOR_SELECT_EVENT, onSector);
+      window.removeEventListener(SECTOR_PREVIEW_EVENT, onPreview);
+      window.removeEventListener(PLANET_LOADED_EVENT, onLoaded);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, []);
+
+  const previewSector = useCallback((index: number) => {
+    planetsRef.current[index]?.userData.ensureLoaded();
+  }, []);
+
+  const selectSector = useCallback((index: number) => {
+    setFocusedId(null);
+    setActiveMesh(index);
+  }, []);
+
+  const activePlanet = fetchPlanetObject(activeMesh);
+  const registry: StationRegistry | undefined =
+    renderInstance?.mesh[activeMesh]?.userData.stations;
+  const stationEntries: StationEntry[] = React.useMemo(
+    () => (registry ? Array.from(registry.values()) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [registry, loadedTick]
+  );
+  const focusedEntry = (focusedId && registry?.get(focusedId)) || null;
+  const overviewTitle =
+    activeMesh === 0 ? "Pioneer Human Expansion in Space" : activePlanet?.copies?.tagline;
 
   return (
     <section className="three-section">
       <div
         className={`loader-overlay ${isInited ? "first-load-animation" : ""}`}
       ></div>
+      {isInited && (
+        <HudFrame
+          coordinate={mouseMoveCoordinate}
+          sector={`${activePlanet?.hud?.sector} · ${activePlanet?.hud?.code}`}
+          assetCount={stationEntries.length}
+        />
+      )}
       <div className="ui-overlay">
-        <NavBar logoOnly />
-        <div className="container">
-          <div className="row">
-            <div
-              className={`col-md-6 col-12 pe-all ${
-                isInited ? "cursor-hand" : ""
-              }`}
-              ref={mouseInteractionAreaRef}
-            >
-              <div className="p-3 bg-transparent overlay-column">
-                {!isInited && (
-                  <div className="loader-container gap-3">
-                    <div className="d-flex flex-column align-items-start p-relative">
-                      <Loader />
-                      <div className="loader-indicator-text d-flex flex-column gap-2 align-items-center justify-content-center">
-                        <p className="loading-progress fs-3 text-light fw-bold mb-0 glow-text-weak textured-text">
-                          {loadingProgress?.progress}%
-                        </p>
-                        <span className="loadingText mb-0 fs-4 text-light textured-text glow-text-weak fw-bold">
-                          {loadingProgress?.step}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {isInited && (
-                  <div className="bottom-left pe-none">
-                    <div className="d-flex text-light flex-column align-items-end justify-content-start gap-2">
-                      <h4 className="fw-bold fs-3 mb-0 pb-0 ">
-                        <div
-                          className="dd-html"
-                          dangerouslySetInnerHTML={{
-                            __html: fetchPlanetContent("years", activeMesh),
-                          }}
-                        ></div>
-                      </h4>
-                      <div
-                        className="dd-html"
-                        dangerouslySetInnerHTML={{
-                          __html: fetchPlanetContent(
-                            "call_to_action",
-                            activeMesh
-                          ),
-                        }}
-                      ></div>
-                      {/* <a
-                        href="#"
-                        className="link-styled text-light fs-6 pe-all"
-                      >
-                        Our 100 Year Vision
-                      </a> */}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="col-md-6 col-12">
-              <div
-                className="p-3 bg-transparent overlay-column d-flex flex-column align-items-start justify-content-start gap-4 fade-in"
-                ref={contentRef}
-                style={{
-                  transform: `perspective(500px) rotateY(-15deg) translate(${
-                    mouseMoveCoordinate.x * -30
-                  }px, ${mouseMoveCoordinate.y * -30}px)`,
-                }}
-              >
-                <div className="hero-text-container mb-5">
-                  {!hideNav && (
-                    <nav className="navbar-nav glass hero-nav">
-                      <NavItemBar activeIndex={activeMesh} data={NAV_DATA} />
-                    </nav>
-                  )}
-                  {activeMesh === 0 ? (
-                    <HomeHeader />
-                  ) : (
-                    <SectionContent
-                      activePlanet={activeMesh}
-                      offset={{
-                        x: mouseMoveCoordinate.x,
-                        y: mouseMoveCoordinate.y,
-                      }}
-                    />
-                  )}
-                </div>
-              </div>
-            </div>
+        <HudHeader
+          tabs={NAV_DATA}
+          activeIndex={activeMesh}
+          onSelect={selectSector}
+          onPreview={previewSector}
+          showTabs={isInited}
+        />
+        {!isInited && (
+          <div className="hud-boot">
+            <BootLoader steps={LoadingObject} current={loadingProgress} />
           </div>
-        </div>
+        )}
+        {isInited && (
+          <>
+            {!transit && (
+              <OpWindow
+                key={activeMesh}
+                title={overviewTitle}
+                years={activePlanet?.copies?.years}
+                callToAction={activePlanet?.copies?.call_to_action}
+                code={activePlanet?.hud?.code}
+                siteCount={stationEntries.length}
+                hidden={!!focusedEntry}
+              />
+            )}
+            {transit && (
+              <TransitBanner
+                key={transit.id}
+                from={transit.from}
+                to={transit.to}
+                distance={transit.distance}
+                duration={transit.duration}
+                acquiring={transit.acquiring}
+              />
+            )}
+            <BriefingPanel
+              activePlanet={activeMesh}
+              entries={stationEntries}
+              focused={focusedEntry}
+              onSelect={setFocusedId}
+              onClose={() => setFocusedId(null)}
+            />
+          </>
+        )}
       </div>
-      <div className="canvas position-fixed" ref={canvasRef}></div>
+      <div
+        className={`canvas position-fixed ${isInited ? "cursor-hand" : ""}`}
+        ref={canvasRef}
+      ></div>
     </section>
   );
 }
-
-// Request issue with personal-info
-// Mandatory fields are not being validated for maiden name

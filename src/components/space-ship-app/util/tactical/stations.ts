@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { yieldToFrame } from "./preparation";
 import { COLOR } from "./palette";
 import { toHologram, setHighlight, setLineFade } from "./wireframe";
 import { createPin, createOrbitPath, createLinkLines, latLonToVec3, Pin } from "./markers";
@@ -425,6 +426,7 @@ export interface StationEntry {
   // bounding radius of the primary model in world units, used to frame the camera
   radius: number;
   highlight: (on: boolean) => void;
+  hover: (on: boolean) => void;
 }
 
 export type StationRegistry = Map<string, StationEntry>;
@@ -439,7 +441,7 @@ export const STATION_SELECT_EVENT = "station-select";
 
 const UP = new THREE.Vector3(0, 1, 0);
 
-export function buildStations(
+export async function buildStations(
   planet: THREE.Group,
   surfaces: Record<string, Surface>,
   data: StationData[]
@@ -449,17 +451,19 @@ export function buildStations(
   const carriers: { obj: THREE.Object3D; speed: number; id: string }[] = [];
   const turntables = new Map<string, THREE.Object3D>();
   let focusedId: string | null = null;
+  let hoveredId: string | null = null;
   const pinTargets: { pin: Pin; target: THREE.Object3D; lift: number }[] = [];
   const linkUpdates: (() => void)[] = [];
   const stationsRoot = new THREE.Group();
   stationsRoot.name = "stations";
   planet.add(stationsRoot);
 
-  data.forEach((station) => {
+  for (const station of data) {
+    await yieldToFrame();
     const factory = FACTORIES[station.type as StationType];
     if (!factory) {
       console.warn(`Unknown station type ${station.type}`);
-      return;
+      continue;
     }
     const accent = station.kind === "surface";
     const objects: THREE.Object3D[] = [];
@@ -493,6 +497,7 @@ export function buildStations(
       const orbit = station.orbit ?? { radius: 35 };
       const count = station.count ?? 1;
       for (let i = 0; i < count; i++) {
+        if (i > 0) await yieldToFrame();
         const roll = new THREE.Group();
         roll.rotation.z = (orbit.roll ?? 0) * DEG;
         const incl = new THREE.Group();
@@ -500,7 +505,7 @@ export function buildStations(
         incl.rotation.x = ((orbit.inclination ?? 0) + i * (orbit.planeSpread ?? 0)) * DEG;
         roll.add(incl);
         if (i === 0 || orbit.planeSpread) {
-          incl.add(createOrbitPath(orbit.radius, { ticks: i === 0 ? 12 : 0 }));
+          incl.add(createOrbitPath(orbit.radius));
         }
         const carrier = new THREE.Group();
         carrier.rotation.y = ((orbit.phase ?? 0) + (orbit.planeSpread ? i * 40 : (i * 360) / count)) * DEG;
@@ -532,16 +537,16 @@ export function buildStations(
 
     // the focused site stays lit while hovers come and go
     const highlight = (on: boolean) => {
-      const lit = on || focusedId === station.id;
+      const lit = on || hoveredId === station.id || focusedId === station.id;
       objects.forEach((o) => setHighlight(o, lit));
       pin.setActive(lit);
     };
-    const emit = (on: boolean) => () => {
-      highlight(on);
-      window.dispatchEvent(new CustomEvent(STATION_HOVER_EVENT, { detail: { id: station.id, on } }));
+    const hover = (on: boolean) => {
+      if (on) setHover(station.id);
+      else if (hoveredId === station.id) setHover(null);
     };
-    pin.element.addEventListener("mouseenter", emit(true));
-    pin.element.addEventListener("mouseleave", emit(false));
+    pin.element.addEventListener("mouseenter", () => hover(true));
+    pin.element.addEventListener("mouseleave", () => hover(false));
     pin.element.addEventListener("click", (event) => {
       event.stopPropagation();
       window.dispatchEvent(new CustomEvent(STATION_SELECT_EVENT, { detail: { id: station.id } }));
@@ -552,8 +557,22 @@ export function buildStations(
     const bounds = new THREE.Box3().setFromObject(primary);
     const radius = bounds.getBoundingSphere(new THREE.Sphere()).radius;
 
-    registry.set(station.id, { data: station, objects, pin, radius, highlight });
-  });
+    registry.set(station.id, { data: station, objects, pin, radius, highlight, hover });
+  }
+
+  function setHover(id: string | null) {
+    if (hoveredId === id) return;
+    const previous = hoveredId;
+    hoveredId = id;
+    if (previous) {
+      registry.get(previous)?.highlight(false);
+      window.dispatchEvent(new CustomEvent(STATION_HOVER_EVENT, { detail: { id: previous, on: false } }));
+    }
+    if (id) {
+      registry.get(id)?.highlight(true);
+      window.dispatchEvent(new CustomEvent(STATION_HOVER_EVENT, { detail: { id, on: true } }));
+    }
+  }
 
   const world = new THREE.Vector3();
   const center = new THREE.Vector3();
@@ -608,6 +627,7 @@ export function buildStations(
   };
 
   const setFocus = (id: string | null) => {
+    setHover(null);
     const previous = focusedId;
     focusedId = id;
     [previous, id].forEach((key) => key && registry.get(key)?.highlight(false));
@@ -636,7 +656,7 @@ export function pickStation(
     if (!entry.pin.label.visible) return;
     entry.objects.forEach((object) => {
       object.getWorldPosition(point).project(camera);
-      if (point.z > 1) return;
+      if (point.z < -1 || point.z > 1) return;
       const x = ((point.x + 1) / 2) * window.innerWidth;
       const y = ((1 - point.y) / 2) * window.innerHeight;
       const distance = Math.hypot(x - clientX, y - clientY);

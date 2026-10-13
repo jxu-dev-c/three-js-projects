@@ -7,7 +7,8 @@ import PlanetCloudBase from "../../../../asset/earth/Clouds.jpeg";
 
 import { loadTexture } from "../texture/loadTexture";
 import { applyTacticalSurface } from "../tactical/tacticalSurface";
-import { createAtmosphere, createOrbitalPlane } from "../tactical/hudShell";
+import { createSurfaceAtmosphere } from "../tactical/atmosphere";
+import { createOrbitalPlane } from "../tactical/hudShell";
 import { rigPlanet } from "../tactical/planet";
 import { StationData } from "../tactical/stations";
 import { COLOR } from "../tactical/palette";
@@ -31,7 +32,7 @@ export const Earth = async (
     map: base,
     metalness: 0,
     // roughen the oceans: a bright sun glint pulls focus from the sites
-    roughness: 2,
+    roughness: 1,
     normalMap,
     normalScale: new THREE.Vector2(1, 1),
     roughnessMap,
@@ -48,6 +49,7 @@ export const Earth = async (
     grade: 0.75,
     lineIntensity: 0.5,
     nightEmissiveOnly: true,
+    oceanRoughnessFloor: 0.8,
   });
   const surface = new THREE.Mesh(new THREE.SphereGeometry(RADIUS, 96, 96), material);
 
@@ -62,7 +64,7 @@ export const Earth = async (
     })
   );
 
-  group.add(surface, cloudsMesh, createAtmosphere(34), createOrbitalPlane(RADIUS));
+  group.add(surface, cloudsMesh, createSurfaceAtmosphere(RADIUS), createOrbitalPlane(RADIUS));
   group.position.set(Px, Py, Pz);
 
   return rigPlanet({

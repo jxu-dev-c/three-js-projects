@@ -21,7 +21,7 @@ export interface PlanetRig {
   extraUpdate?: PlanetUpdate;
 }
 
-export function rigPlanet({
+export async function rigPlanet({
   group,
   surface,
   surfaceSpeed = 0.03,
@@ -35,7 +35,7 @@ export function rigPlanet({
 }: PlanetRig) {
   surface.name = "surface";
   if (clouds) clouds.name = "clouds";
-  const { registry, update: updateStations, setFocus } = buildStations(
+  const { registry, update: updateStations, setFocus } = await buildStations(
     group,
     { planet: { mesh: surface, radius }, ...extraSurfaces },
     stations

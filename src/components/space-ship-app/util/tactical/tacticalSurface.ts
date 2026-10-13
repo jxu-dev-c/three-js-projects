@@ -24,6 +24,7 @@ export interface TacticalSurfaceOptions {
   nightFill?: number;
   // emissive map (city lights) is only visible on the night side
   nightEmissiveOnly?: boolean;
+  oceanRoughnessFloor?: number;
 }
 
 export type TacticalUniforms = Record<string, THREE.IUniform>;
@@ -39,6 +40,7 @@ uniform float uScanSpeed;
 uniform float uScanIntensity;
 uniform float uNightFill;
 uniform float uHighlight;
+uniform float uOceanRoughnessFloor;
 uniform sampler2D uMask;
 uniform vec2 uMaskThreshold;
 uniform vec2 uMaskTexel;
@@ -127,6 +129,7 @@ export function applyTacticalSurface(
     uScanIntensity: { value: opts.scanIntensity ?? 0.35 },
     uNightFill: { value: opts.nightFill ?? 0.08 },
     uHighlight: { value: 0 },
+    uOceanRoughnessFloor: { value: opts.oceanRoughnessFloor ?? 0 },
     uMask: { value: opts.mask ?? blankMask },
     uMaskThreshold: {
       value: new THREE.Vector2(...(opts.maskThreshold ?? [0.4, 0.6])),
@@ -148,7 +151,14 @@ export function applyTacticalSurface(
     shader.fragmentShader = shader.fragmentShader
       .replace("#include <common>", `#include <common>\n${HEADER}`)
       .replace("#include <map_fragment>", AFTER_MAP)
-      .replace("#include <emissivemap_fragment>", EMISSIVE);
+      .replace("#include <emissivemap_fragment>", EMISSIVE)
+      .replace("#include <roughnessmap_fragment>", `
+#include <roughnessmap_fragment>
+#ifdef TAC_COAST
+  // Apply after the map: dark ocean texels must not cancel the roughness floor.
+  roughnessFactor = max(roughnessFactor, uOceanRoughnessFloor * (1.0 - tacLand));
+#endif
+`);
   };
   material.customProgramCacheKey = () =>
     `tactical-${opts.mode}-${opts.nightEmissiveOnly ? 1 : 0}`;

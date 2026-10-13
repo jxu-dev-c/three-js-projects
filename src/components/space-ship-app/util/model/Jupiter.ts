@@ -34,12 +34,14 @@ export const JupiterPlanet = async (
     roughness: 0.9,
     metalness: 0,
   });
-  // contour lines trace the cloud bands
+  // Keep the cloud bands and their natural color ahead of the contour overlay.
   const uniforms = applyTacticalSurface(material, {
     mode: "contour",
-    contourDensity: 5,
-    grade: 0.8,
-    lineIntensity: 0.32,
+    contourDensity: 3,
+    grade: 0.4,
+    lineIntensity: 0.09,
+    gridIntensity: 0.14,
+    scanIntensity: 0.12,
     nightFill: 0.1,
   });
   const surface = new THREE.Mesh(new THREE.SphereGeometry(RADIUS, 96, 96), material);
@@ -70,7 +72,7 @@ export const JupiterPlanet = async (
   europaCarrier.rotation.y = 124 * DEG;
   europa.position.x = EUROPA.orbit;
   europaCarrier.add(europa);
-  europaIncl.add(createOrbitPath(EUROPA.orbit, { opacity: 0.35 }), europaCarrier);
+  europaIncl.add(createOrbitPath(EUROPA.orbit), europaCarrier);
   europaRoll.add(europaIncl);
 
   const tagEl = document.createElement("div");

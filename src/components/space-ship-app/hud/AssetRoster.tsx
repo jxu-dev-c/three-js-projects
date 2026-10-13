@@ -15,18 +15,20 @@ export default function AssetRoster({ entries, selectedId, onSelect }: AssetRost
   useEffect(() => {
     const onHover = (event: Event) => {
       const { id, on } = (event as CustomEvent).detail;
-      setActiveId(on ? id : null);
+      if (entries.some((entry) => entry.data.id === id)) {
+        setActiveId((current) => on ? id : current === id ? null : current);
+      }
     };
     window.addEventListener(STATION_HOVER_EVENT, onHover);
     return () => window.removeEventListener(STATION_HOVER_EVENT, onHover);
-  }, []);
+  }, [entries]);
 
   // a focused pin hides before its mouseleave fires, so reset hover on focus change
   useEffect(() => setActiveId(null), [selectedId]);
 
   // clear any lingering highlight when the roster changes sector
   useEffect(() => {
-    return () => entries.forEach((entry) => entry.highlight(false));
+    return () => entries.forEach((entry) => entry.hover(false));
   }, [entries]);
 
   const units = entries.reduce((sum, entry) => sum + (entry.data.count ?? 1), 0);
@@ -58,11 +60,11 @@ export default function AssetRoster({ entries, selectedId, onSelect }: AssetRost
                 onClick={() => onSelect?.(id)}
                 onMouseEnter={() => {
                   setActiveId(id);
-                  entry.highlight(true);
+                  entry.hover(true);
                 }}
                 onMouseLeave={() => {
                   setActiveId(null);
-                  entry.highlight(false);
+                  entry.hover(false);
                 }}
               >
                 <td className="hud-data">{id}</td>

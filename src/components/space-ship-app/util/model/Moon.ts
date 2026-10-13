@@ -29,12 +29,14 @@ export const Moon = async (
     roughness: 0.9,
     metalness: 0,
   });
-  // topographic contour lines from surface brightness
+  // Sparse, faint contours let the crater texture and relief lead.
   const uniforms = applyTacticalSurface(material, {
     mode: "contour",
-    contourDensity: 9,
-    grade: 0.55,
-    lineIntensity: 0.55,
+    contourDensity: 5,
+    grade: 0.35,
+    lineIntensity: 0.16,
+    gridIntensity: 0.14,
+    scanIntensity: 0.12,
     nightFill: 0.12,
   });
   const surface = new THREE.Mesh(new THREE.SphereGeometry(RADIUS, 96, 96), material);

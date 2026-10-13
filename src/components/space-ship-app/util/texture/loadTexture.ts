@@ -12,9 +12,9 @@ export const loadTexture = async (url: any, type = "regular"):Promise<THREE.Text
       break;
   }
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     textureLoader.load(url, (texture: any) => {
       resolve(texture);
-    });
+    }, undefined, reject);
   });
 };

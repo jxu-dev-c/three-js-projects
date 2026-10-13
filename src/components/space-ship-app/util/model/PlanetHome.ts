@@ -7,7 +7,8 @@ import PlanetCloudNormal from "../../../../asset/continental/planet_continental_
 
 import { loadTexture } from "../texture/loadTexture";
 import { applyTacticalSurface } from "../tactical/tacticalSurface";
-import { createAtmosphere, createOrbitalPlane } from "../tactical/hudShell";
+import { createSurfaceAtmosphere } from "../tactical/atmosphere";
+import { createOrbitalPlane } from "../tactical/hudShell";
 import { rigPlanet } from "../tactical/planet";
 import { StationData } from "../tactical/stations";
 import { COLOR } from "../tactical/palette";
@@ -30,8 +31,8 @@ export const HomePlanet = async (
 
   const material = new THREE.MeshStandardMaterial({
     map: base,
-    // roughen the oceans: a hot sun glint blooms into a blocky glare
-    roughness: 2,
+    // The tactical shader applies an ocean roughness floor after the map.
+    roughness: 1,
     roughnessMap,
     metalnessMap: roughnessMap,
     normalMap,
@@ -45,6 +46,7 @@ export const HomePlanet = async (
     maskTexel: [0.0007, 0.0011],
     grade: 0.7,
     lineIntensity: 0.5,
+    oceanRoughnessFloor: 0.8,
   });
   const surface = new THREE.Mesh(new THREE.SphereGeometry(RADIUS, 96, 96), material);
 
@@ -60,7 +62,12 @@ export const HomePlanet = async (
     })
   );
 
-  group.add(surface, cloudsMesh, createAtmosphere(34), createOrbitalPlane(RADIUS));
+  group.add(surface, cloudsMesh, createSurfaceAtmosphere(RADIUS, {
+    thickness: 0.045,
+    opacity: 0.48,
+    tint: new THREE.Color(0x8cb5df),
+    sunsetTint: new THREE.Color(0xe8b998),
+  }), createOrbitalPlane(RADIUS));
   group.position.set(Px, Py, Pz);
 
   return rigPlanet({

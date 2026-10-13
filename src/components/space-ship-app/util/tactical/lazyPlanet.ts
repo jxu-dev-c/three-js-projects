@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { Body } from "./systemMap";
+import { createSurfaceAtmosphere } from "./atmosphere";
 import { createAtmosphere } from "./hudShell";
 import { COLOR } from "./palette";
 import { StationRegistry } from "./stations";
@@ -14,12 +15,13 @@ export interface LazyPlanetOptions {
   body: Body;
   tint: THREE.Color;
   load: () => Promise<THREE.Group>;
+  prepare?: (group: THREE.Group) => Promise<void>;
 }
 
 const EMPTY_REGISTRY: StationRegistry = new Map();
 
 // tinted sphere + lat/long line work + rim glow: reads as a planet at range
-function createProxy(radius: number, tint: THREE.Color) {
+function createProxy(radius: number, tint: THREE.Color, terrestrial: boolean) {
   const group = new THREE.Group();
   group.name = "proxy";
   group.add(
@@ -68,31 +70,43 @@ function createProxy(radius: number, tint: THREE.Color) {
       })
     )
   );
-  group.add(createAtmosphere(radius * 1.34, { opacity: 0.4 }));
+  group.add(terrestrial
+    ? createSurfaceAtmosphere(radius, { opacity: 0.4 })
+    : createAtmosphere(radius * 1.34, { opacity: 0.4 }));
   return group;
 }
 
-export function createLazyPlanet({ body, tint, load }: LazyPlanetOptions) {
+export function createLazyPlanet({ body, tint, load, prepare }: LazyPlanetOptions) {
   const wrapper = new THREE.Group();
   wrapper.position.copy(body.position);
   wrapper.rotation.y = body.yaw;
-  const proxy = createProxy(body.radius, tint);
+  const proxy = createProxy(body.radius, tint, body.num === 0 || body.num === 1);
   wrapper.add(proxy);
 
   let full: THREE.Group | null = null;
-  let pending: Promise<THREE.Group> | null = null;
+  let pending: Promise<THREE.Group | null> | null = null;
+  let staged: THREE.Group | null = null;
   let detail = false;
 
   const ensureLoaded = () => {
     if (!pending) {
-      pending = load().then((group) => {
+      pending = Promise.resolve().then(async () => {
+        const group = staged ?? await load();
+        staged = group;
+        await prepare?.(group);
         group.position.set(0, 0, 0);
-        wrapper.add(group);
         group.userData.setDetail(detail);
+        wrapper.add(group);
         wrapper.remove(proxy);
         full = group;
+        staged = null;
         window.dispatchEvent(new CustomEvent(PLANET_LOADED_EVENT, { detail: { num: body.num } }));
         return group;
+      }).catch((error) => {
+        // Keep the proxy usable; a later preview/selection can retry.
+        pending = null;
+        console.warn(`Unable to load sector ${body.num}`, error);
+        return null;
       });
     }
     return pending;

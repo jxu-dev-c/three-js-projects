@@ -112,7 +112,7 @@ export interface OrbitPathOptions {
 // Circle in the local XZ plane; the caller tilts it to the orbit inclination
 export function createOrbitPath(
   radius: number,
-  { color = COLOR.steel, opacity = 0.45, dashed = true, ticks = 12 }: OrbitPathOptions = {}
+  { color = COLOR.steel, opacity = 0.22, dashed = false, ticks = 0 }: OrbitPathOptions = {}
 ) {
   const group = new THREE.Group();
   const points: THREE.Vector3[] = [];

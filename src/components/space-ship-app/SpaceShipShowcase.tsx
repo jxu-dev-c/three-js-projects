@@ -28,11 +28,11 @@ import {
   Body,
   buildSystemLayout,
   createSystemMarkers,
-  formatDistance,
   SECTOR_PREVIEW_EVENT,
   SECTOR_SELECT_EVENT,
   transitDuration,
 } from "./util/tactical/systemMap";
+import { preparePlanet } from "./util/tactical/preparation";
 import { createLazyPlanet, PLANET_LOADED_EVENT } from "./util/tactical/lazyPlanet";
 
 // share decoded images between loaders (Europa reuses the Moon's base map)
@@ -47,17 +47,6 @@ import HudFrame from "./hud/HudFrame";
 import BriefingPanel from "./hud/BriefingPanel";
 import OpWindow from "./hud/OpWindow";
 import BootLoader from "./hud/BootLoader";
-import TransitBanner from "./hud/TransitBanner";
-
-interface Transit {
-  id: number;
-  from: Body;
-  to: Body;
-  distance: string;
-  duration: number;
-  // flight finished but the destination's textures are still streaming in
-  acquiring?: boolean;
-}
 
 export interface IAppProps {}
 
@@ -72,7 +61,6 @@ export default function SpaceShipShowcase(props: IAppProps) {
   const [activeMesh, setActiveMesh] = useState<number>(0);
   const [renderInstance, setRenderInstance] = useState<any>(null);
   const [focusedId, setFocusedId] = useState<string | null>(null);
-  const [transit, setTransit] = useState<Transit | null>(null);
   // bumps when a planet finishes streaming in, so its site registry re-renders
   const [loadedTick, setLoadedTick] = useState(0);
   const planetsRef = useRef<THREE.Group[]>([]);
@@ -183,25 +171,31 @@ export default function SpaceShipShowcase(props: IAppProps) {
         setLoadingProgress(LoadingObject[2]);
 
         // Bodies start as procedural stand-ins; full textures and sites stream in
-        // only when a sector is visited (or hovered), never all up front.
+        // on demand, with Terra prepared in the background after Home is interactive.
+        let prepare: ((group: THREE.Group) => Promise<void>) | undefined;
+        const prepareLoaded = (group: THREE.Group) => prepare?.(group) ?? Promise.resolve();
         const ORIGIN = { Px: 0, Py: 0, Pz: 0 };
         const meshList = [
           createLazyPlanet({
+            prepare: prepareLoaded,
             body: layout[0],
             tint: new THREE.Color(0x3d4a52),
             load: () => HomePlanet(ORIGIN, HomePlanetObject?.stations as StationData[]),
           }),
           createLazyPlanet({
+            prepare: prepareLoaded,
             body: layout[1],
             tint: new THREE.Color(0x2e4a6b),
             load: () => Earth(ORIGIN, EarthPlanetObject?.stations as StationData[]),
           }),
           createLazyPlanet({
+            prepare: prepareLoaded,
             body: layout[2],
             tint: new THREE.Color(0x5a5f66),
             load: () => Moon(ORIGIN, MoonPlanetObject?.stations as StationData[]),
           }),
           createLazyPlanet({
+            prepare: prepareLoaded,
             body: layout[3],
             tint: new THREE.Color(0x6b5a4c),
             load: () => JupiterPlanet(ORIGIN, JupiterPlanetObject?.stations as StationData[]),
@@ -249,6 +243,7 @@ export default function SpaceShipShowcase(props: IAppProps) {
             updateLight();
           },
         });
+        prepare = (group) => preparePlanet(group, renderInstance.renderer, camera, scene);
         setLoadingProgress(LoadingObject[6]);
 
         window.addEventListener("resize", () => {
@@ -281,6 +276,15 @@ export default function SpaceShipShowcase(props: IAppProps) {
   }, [isInited]);
 
   useEffect(() => {
+    if (!isInited) return;
+    // Let Home paint and become interactive before preparing the next destination.
+    const timer = window.setTimeout(() => {
+      void planetsRef.current[1]?.userData.ensureLoaded();
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [isInited]);
+
+  useEffect(() => {
     // Prevent the hook from running on page load
     if (!isInited) {
       return;
@@ -296,8 +300,6 @@ export default function SpaceShipShowcase(props: IAppProps) {
 
     // fly from the previous sector to this one across the system map, streaming
     // the destination's textures in while the camera is in flight
-    let transitTimer: number | undefined;
-    let cancelled = false;
     const previous = previousSectorRef.current;
     previousSectorRef.current = activeMesh;
     if (previous !== null && previous !== activeMesh && rigRef.current) {
@@ -306,23 +308,8 @@ export default function SpaceShipShowcase(props: IAppProps) {
       const duration = transitDuration(from, to);
       starsRef.current = { from: from.star, to: to.star };
       rigRef.current.travelTo(to.position, to.cameraPosition, duration);
-      const id = Date.now();
-      setTransit({ id, from, to, distance: formatDistance(from, to), duration });
-      const arrival = new Promise<void>((resolve) => {
-        transitTimer = window.setTimeout(resolve, duration * 1000);
-      });
-      const loaded = currentMesh.userData.ensureLoaded();
-      arrival.then(() => {
-        if (!cancelled && !currentMesh.userData.isLoaded) {
-          setTransit((t) => (t && t.id === id ? { ...t, acquiring: true } : t));
-        }
-      });
-      Promise.all([arrival, loaded]).then(() => {
-        if (!cancelled) setTransit((t) => (t && t.id === id ? null : t));
-      });
-    } else {
-      currentMesh.userData.ensureLoaded();
     }
+    void currentMesh.userData.ensureLoaded();
 
     const mouseDragEventHandler = async (event: MouseEvent) => {
       if (event.buttons === 1) {
@@ -352,12 +339,52 @@ export default function SpaceShipShowcase(props: IAppProps) {
         pickStation(currentMesh.userData.stations, renderInstance.camera, event.clientX, event.clientY)
       );
     };
+    const surface = renderInstance.renderer.domElement as HTMLCanvasElement;
+    let hovered: string | null = null;
+    let pointer: { x: number; y: number } | null = null;
+    let hoverFrame = 0;
+    const clearHover = () => {
+      if (hovered) currentMesh.userData.stations.get(hovered)?.hover(false);
+      hovered = null;
+      surface.style.cursor = "";
+    };
+    const updateHover = () => {
+      if (!pointer) return;
+      const id = pickStation(currentMesh.userData.stations, renderInstance.camera, pointer.x, pointer.y);
+      if (id !== hovered) {
+        clearHover();
+        hovered = id;
+        surface.style.cursor = id ? "pointer" : "";
+      }
+      // Idempotent: focus changes may clear station hover while the pointer stays put.
+      if (id) currentMesh.userData.stations.get(id)?.hover(true);
+      // Also track sites moving underneath a stationary pointer.
+      hoverFrame = requestAnimationFrame(updateHover);
+    };
+    const stopHover = () => {
+      pointer = null;
+      cancelAnimationFrame(hoverFrame);
+      clearHover();
+    };
+    const onHoverMove = (event: PointerEvent) => {
+      if (event.buttons || event.pointerType === "touch") { stopHover(); return; }
+      const wasTracking = pointer !== null;
+      pointer = { x: event.clientX, y: event.clientY };
+      if (!wasTracking) hoverFrame = requestAnimationFrame(updateHover);
+    };
+    surface.addEventListener("pointermove", onHoverMove);
+    surface.addEventListener("pointerleave", stopHover);
+    surface.addEventListener("pointerdown", stopHover);
+    window.addEventListener("blur", stopHover);
     mouseAreaRef?.addEventListener("mousedown", onPointerDown);
     mouseAreaRef?.addEventListener("click", onClick);
 
     return () => {
-      cancelled = true;
-      window.clearTimeout(transitTimer);
+      stopHover();
+      surface.removeEventListener("pointermove", onHoverMove);
+      surface.removeEventListener("pointerleave", stopHover);
+      surface.removeEventListener("pointerdown", stopHover);
+      window.removeEventListener("blur", stopHover);
       mouseAreaRef?.removeEventListener("mousedown", onPointerDown);
       mouseAreaRef?.removeEventListener("click", onClick);
       mouseAreaRef?.removeEventListener("mousemove", mouseDragEventHandler);
@@ -380,8 +407,7 @@ export default function SpaceShipShowcase(props: IAppProps) {
     );
     document.querySelector(".label-layer")?.classList.toggle("is-focusing", !!entry);
     return () => group.userData.setFocus(null);
-    // transit is a dependency so mobile insets re-measure once the op window returns
-  }, [focusedId, activeMesh, isInited, transit]);
+  }, [focusedId, activeMesh, isInited]);
 
   useEffect(() => {
     const onSelect = (event: Event) => setFocusedId((event as CustomEvent).detail.id);
@@ -459,27 +485,15 @@ export default function SpaceShipShowcase(props: IAppProps) {
         )}
         {isInited && (
           <>
-            {!transit && (
-              <OpWindow
-                key={activeMesh}
-                title={overviewTitle}
-                years={activePlanet?.copies?.years}
-                callToAction={activePlanet?.copies?.call_to_action}
-                code={activePlanet?.hud?.code}
-                siteCount={stationEntries.length}
-                hidden={!!focusedEntry}
-              />
-            )}
-            {transit && (
-              <TransitBanner
-                key={transit.id}
-                from={transit.from}
-                to={transit.to}
-                distance={transit.distance}
-                duration={transit.duration}
-                acquiring={transit.acquiring}
-              />
-            )}
+            <OpWindow
+              key={activeMesh}
+              title={overviewTitle}
+              years={activePlanet?.copies?.years}
+              callToAction={activePlanet?.copies?.call_to_action}
+              code={activePlanet?.hud?.code}
+              siteCount={stationEntries.length}
+              hidden={!!focusedEntry}
+            />
             <BriefingPanel
               activePlanet={activeMesh}
               entries={stationEntries}

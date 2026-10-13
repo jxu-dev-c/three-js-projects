@@ -510,14 +510,15 @@ body {
   position: sticky;
   top: 0;
   z-index: 1;
-  background: rgba(14, 22, 34, 0.96);
+  background: rgba(14, 22, 34, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--s-4);
   padding: var(--s-3) 40px var(--s-3) 36px;
   border-bottom: 1px solid var(--c-line);
-  background: rgba(143, 179, 217, 0.06);
 }
 .briefing__close {
   display: flex;
@@ -871,103 +872,6 @@ body {
 .hud-beacon--star .hud-beacon__name {
   font-size: 10px;
   color: #ffd9b0;
-}
-
-/* transit banner */
-.transit-banner {
-  --cut: 14px;
-  position: fixed;
-  left: 50%;
-  bottom: 96px;
-  width: min(440px, calc(100vw - 32px));
-  transform: translateX(-50%);
-  padding: var(--s-3) var(--s-5) var(--s-4);
-  z-index: 4;
-  animation: transit-in 400ms ease-out;
-}
-.transit-banner__head {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--s-4);
-}
-.transit-banner__head .hud-label {
-  color: var(--c-accent);
-}
-.transit-banner__route {
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-  margin: var(--s-2) 0 var(--s-3);
-  font-family: var(--f-display);
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-.transit-banner__from {
-  color: var(--c-steel);
-}
-.transit-banner__arrow {
-  flex: 1;
-  height: 1px;
-  background: repeating-linear-gradient(90deg, var(--c-steel-dim) 0 6px, transparent 6px 10px);
-  position: relative;
-}
-.transit-banner__arrow::after {
-  content: "";
-  position: absolute;
-  right: -1px;
-  top: -4px;
-  border-left: 7px solid var(--c-accent);
-  border-top: 4.5px solid transparent;
-  border-bottom: 4.5px solid transparent;
-}
-.transit-banner__to {
-  color: var(--c-ice);
-  text-shadow: var(--glow-ice);
-}
-.transit-banner__bar {
-  height: 3px;
-  background: var(--c-line-soft);
-  overflow: hidden;
-}
-.transit-banner__bar span {
-  display: block;
-  height: 100%;
-  background: var(--c-accent);
-  box-shadow: var(--glow-accent);
-  transform-origin: left;
-  animation: transit-progress var(--transit-duration) cubic-bezier(0.65, 0, 0.35, 1) forwards;
-}
-.transit-banner__bar.is-acquiring span {
-  animation: transit-acquire 0.9s ease-in-out infinite alternate;
-}
-@keyframes transit-acquire {
-  from {
-    opacity: 0.35;
-  }
-  to {
-    opacity: 1;
-  }
-}
-.transit-banner__codes {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 6px;
-}
-@keyframes transit-progress {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
-  }
-}
-@keyframes transit-in {
-  from {
-    opacity: 0;
-    transform: translate(-50%, 10px);
-  }
 }
 
 /* ------------------------------------------------------------------ */

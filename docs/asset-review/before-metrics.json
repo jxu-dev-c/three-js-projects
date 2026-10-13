@@ -1,0 +1,58 @@
+{
+  "generationShip": {
+    "calls": 270,
+    "triangles": 8346,
+    "lines": 2642,
+    "geometries": 217,
+    "medianMs": 0.5,
+    "p95Ms": 0.7000000476837158
+  },
+  "ringResort": {
+    "calls": 82,
+    "triangles": 6742,
+    "lines": 1844,
+    "geometries": 47,
+    "medianMs": 0.2999999523162842,
+    "p95Ms": 0.40000009536743164
+  },
+  "modularLab": {
+    "calls": 152,
+    "triangles": 2330,
+    "lines": 1129,
+    "geometries": 119,
+    "medianMs": 0.2999999523162842,
+    "p95Ms": 0.5
+  },
+  "shipyard": {
+    "calls": 131,
+    "triangles": 7166,
+    "lines": 1899,
+    "geometries": 98,
+    "medianMs": 0.19999980926513672,
+    "p95Ms": 0.20000004768371582
+  },
+  "transferHub": {
+    "calls": 107,
+    "triangles": 7962,
+    "lines": 2212,
+    "geometries": 63,
+    "medianMs": 0.10000014305114746,
+    "p95Ms": 0.3000001907348633
+  },
+  "relaySat": {
+    "calls": 41,
+    "triangles": 614,
+    "lines": 152,
+    "geometries": 21,
+    "medianMs": 0.09999990463256836,
+    "p95Ms": 0.10000014305114746
+  },
+  "surfaceSite": {
+    "calls": 48,
+    "triangles": 1958,
+    "lines": 701,
+    "geometries": 24,
+    "medianMs": 0.09999990463256836,
+    "p95Ms": 0.2999999523162842
+  }
+}

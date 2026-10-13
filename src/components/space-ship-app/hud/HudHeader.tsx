@@ -41,10 +41,6 @@ export default function HudHeader({
       {showTabs && <SectorTabs data={tabs} activeIndex={activeIndex} onSelect={onSelect} onPreview={onPreview} />}
       <div className="hud-header__status">
         <div className="hud-readout">
-          <span className="hud-label">V-Mode</span>
-          <span className="hud-readout__value hud-readout__value--accent">TAC</span>
-        </div>
-        <div className="hud-readout">
           <span className="hud-label">UTC {date}</span>
           <span className="hud-readout__value">{time}</span>
         </div>

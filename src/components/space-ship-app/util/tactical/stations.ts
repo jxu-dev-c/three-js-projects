@@ -3,6 +3,11 @@ import { COLOR } from "./palette";
 import { toHologram, setHighlight, setLineFade } from "./wireframe";
 import { createPin, createOrbitPath, createLinkLines, latLonToVec3, Pin } from "./markers";
 
+import {
+  detailResort, detailLab, detailShipyard, detailHub,
+  detailSatellite, detailSurface, detailArk, nozzle,
+} from "./engineering";
+
 const DEG = Math.PI / 180;
 
 // ---------------------------------------------------------------------------
@@ -140,6 +145,7 @@ function ringResort() {
     return panel;
   });
   root.add(wheel, hub, spire, dish, ...docks, ...hubPanels);
+  detailResort(root, wheel);
   root.rotation.z = 0.35;
   return { root, spinners: [{ obj: wheel, axis: "y", speed: 0.5 }] as Spinner[] };
 }
@@ -174,6 +180,7 @@ function modularLab() {
   const antenna = fine(mesh(new THREE.ConeGeometry(0.35, 0.22, 16, 1, true)), 12);
   antenna.position.set(1.5, 2.8, 0);
   root.add(mast, antenna);
+  detailLab(root);
   return { root, spinners: [] as Spinner[] };
 }
 
@@ -222,6 +229,7 @@ function shipyard() {
   [0, Math.PI / 2, Math.PI, Math.PI * 1.5].forEach((a) => {
     root.add(strut(v(-L * 0.38, Math.cos(a) * 0.36, Math.sin(a) * 0.36), v(L * 0.38, Math.cos(a) * 0.36, Math.sin(a) * 0.36)));
   });
+  detailShipyard(root);
   return { root, spinners: [] as Spinner[] };
 }
 
@@ -268,22 +276,19 @@ function transferHub() {
     ring.add(tick);
   }
   root.add(ring);
+  detailHub(root, shuttle);
   return { root, spinners: [{ obj: ring, axis: "z", speed: 0.3 }] as Spinner[] };
 }
 
 function relaySat() {
   const root = new THREE.Group();
   root.add(mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6, 2, 2, 2)));
-  const dish = fine(mesh(new THREE.SphereGeometry(0.6, 20, 5, 0, Math.PI * 2, 0, Math.PI / 4)), 10);
-  dish.position.y = 0.85;
-  dish.rotation.x = Math.PI;
-  root.add(dish);
-  root.add(strut(v(0, 0.3, 0), v(0, 1.0, 0)));
-  // feed horn struts
-  [0, 1, 2].forEach((i) => {
-    const a = (i / 3) * Math.PI * 2;
-    root.add(strut(v(Math.cos(a) * 0.4, 0.5, Math.sin(a) * 0.4), v(0, 0.75, 0)));
+  const profile = Array.from({ length: 7 }, (_, i) => {
+    const r = i * 0.1;
+    return new THREE.Vector2(r, 0.48 + r * r * 0.7);
   });
+  root.add(mesh(new THREE.LatheGeometry(profile, 24)));
+  root.add(beam(v(0, 0.3, 0), v(0, 0.48, 0), 0.08));
   [-1.25, 1.25].forEach((x) => {
     const panel = gridPanel(1.6, 0.55, 6, 2);
     panel.position.x = x;
@@ -293,6 +298,7 @@ function relaySat() {
   const thruster = mesh(new THREE.ConeGeometry(0.12, 0.25, 10, 1, true));
   thruster.position.y = -0.42;
   root.add(thruster);
+  detailSatellite(root);
   return { root, spinners: [] as Spinner[] };
 }
 
@@ -311,8 +317,6 @@ function surfaceSite() {
   const walk2 = beam(v(0, 0.12, 0), v(-0.9, 0.12, 0.8), 0.08);
   const shed = mesh(new THREE.BoxGeometry(1.2, 0.35, 0.5, 3, 1, 1));
   shed.position.set(0.2, 0.18, -1);
-  const derrick = mesh(new THREE.ConeGeometry(0.35, 2.2, 4, 6, true));
-  derrick.position.set(-0.8, 1.1, -0.6);
   const silos = [-1.5, -1.9].map((x) => {
     const s = mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.8, 12, 2));
     s.position.set(x, 0.4, -0.2);
@@ -324,7 +328,8 @@ function surfaceSite() {
   padRing.rotation.x = Math.PI / 2;
   padRing.position.set(1.4, 0.07, -1.2);
   const mast = strut(v(0.6, 0, 0.9), v(0.6, 1.4, 0.9));
-  root.add(d1, d2, d3, walk1, walk2, shed, derrick, ...silos, pad, padRing, mast);
+  root.add(d1, d2, d3, walk1, walk2, shed, ...silos, pad, padRing, mast);
+  detailSurface(root);
   return { root, spinners: [] as Spinner[] };
 }
 
@@ -351,7 +356,7 @@ function generationShip() {
   engine.position.x = -6.5;
   const nozzles = [0, 1, 2, 3].map((i) => {
     const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
-    const n = mesh(new THREE.ConeGeometry(0.45, 1.1, 10, 1, true));
+    const n = nozzle(0.45, 1.1);
     n.rotation.z = Math.PI / 2;
     n.position.set(-8, Math.cos(a) * 0.55, Math.sin(a) * 0.55);
     return n;
@@ -370,6 +375,7 @@ function generationShip() {
   shield.rotation.z = Math.PI / 2;
   shield.position.x = 6;
   root.add(engine, ...nozzles, ...tanks, bow, shield);
+  detailArk(root, habitats);
   return { root, spinners: [{ obj: habitats, axis: "x", speed: 0.25 }] as Spinner[] };
 }
 
@@ -462,6 +468,8 @@ export function buildStations(
       const wrapper = new THREE.Group();
       // turntable layer so a focused site can spin in place
       const turntable = new THREE.Group();
+      turntable.userData.holoMoving = true;
+      s.forEach(({ obj }) => (obj.userData.holoMoving = true));
       turntable.add(root);
       wrapper.add(turntable);
       wrapper.scale.setScalar(station.scale ?? 1);

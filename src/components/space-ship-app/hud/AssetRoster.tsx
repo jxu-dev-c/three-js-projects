@@ -46,7 +46,6 @@ export default function AssetRoster({ entries, selectedId, onSelect }: AssetRost
           <tr>
             <th>ID</th>
             <th>Designation</th>
-            <th>Class</th>
             <th>Status</th>
           </tr>
         </thead>
@@ -69,7 +68,6 @@ export default function AssetRoster({ entries, selectedId, onSelect }: AssetRost
               >
                 <td className="hud-data">{id}</td>
                 <td className="asset-roster__name">{name}</td>
-                <td className="hud-data">{readout.class}</td>
                 <td className="hud-data asset-roster__status">
                   <span className="status-dot" />
                   {readout.status}

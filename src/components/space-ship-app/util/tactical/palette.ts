@@ -7,6 +7,7 @@ export const HEX = {
   steelDeep: "#3a4550",
   accent: "#c49a52",
   ok: "#94ab9c",
+  bg: "#06080a",
 };
 
 export const COLOR = {
@@ -15,6 +16,7 @@ export const COLOR = {
   steelDeep: new THREE.Color(HEX.steelDeep),
   accent: new THREE.Color(HEX.accent),
   ok: new THREE.Color(HEX.ok),
+  bg: new THREE.Color(HEX.bg),
 };
 
 // Bloom only catches values above its threshold, so line colors are pushed into HDR

@@ -31,7 +31,7 @@ export interface Body {
   cameraPosition: THREE.Vector3;
 }
 
-const ecliptic = (au: number, lonDeg: number, latDeg = 0) =>
+export const ecliptic = (au: number, lonDeg: number, latDeg = 0) =>
   new THREE.Vector3(
     Math.cos(latDeg * DEG) * Math.cos(lonDeg * DEG),
     Math.sin(latDeg * DEG),

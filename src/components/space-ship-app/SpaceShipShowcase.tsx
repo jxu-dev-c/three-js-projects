@@ -3,12 +3,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { initThree } from "../initThree";
 import * as THREE from "three";
 import "./index.css";
-import skyboxRight from "../../asset/skybox/skybox-right.png";
-import skyboxLeft from "../../asset/skybox/skybox-left.png";
-import skyboxTop from "../../asset/skybox/skybox-top.png";
-import skyboxBottom from "../../asset/skybox/skybox-bottom.png";
-import skyboxFront from "../../asset/skybox/skybox-front.png";
-import skyboxBack from "../../asset/skybox/skybox-back.png";
 import UI_DATA from "./UI_DATA.json";
 import { HomePlanet } from "./util/model/PlanetHome";
 import { Moon } from "./util/model/Moon";
@@ -34,12 +28,10 @@ import {
 } from "./util/tactical/systemMap";
 import { preparePlanet } from "./util/tactical/preparation";
 import { createLazyPlanet, PLANET_LOADED_EVENT } from "./util/tactical/lazyPlanet";
+import { createStarChart } from "./util/tactical/starChart";
 
 // share decoded images between loaders (Europa reuses the Moon's base map)
 THREE.Cache.enabled = true;
-
-// loader
-import { loadTexture } from "./util/texture/loadTexture";
 
 // HUD
 import HudHeader from "./hud/HudHeader";
@@ -146,20 +138,9 @@ export default function SpaceShipShowcase(props: IAppProps) {
       const scene = new THREE.Scene();
       (async function () {
         setLoadingProgress(LoadingObject[0]);
-        const texture = await loadTexture(
-          [
-            skyboxRight,
-            skyboxLeft,
-            skyboxTop,
-            skyboxBottom,
-            skyboxFront,
-            skyboxBack,
-          ],
-          "cube"
-        );
-        scene.background = texture;
-        // dim the starfield so the line work reads first
-        scene.backgroundIntensity = 0.55;
+        // the sky is plotted, not photographed: see starChart.ts
+        scene.background = COLOR.bg;
+        const starChart = createStarChart();
         setLoadingProgress(LoadingObject[1]);
         const width = window.innerWidth;
         const height = window.innerHeight;
@@ -239,7 +220,8 @@ export default function SpaceShipShowcase(props: IAppProps) {
           canvas,
           width,
           height,
-          mesh: meshList,
+          // the chart rides last so planet indices still match sectors
+          mesh: [...meshList, starChart],
           showPerformance: false,
           RotateControls: false,
           axisHelper: false,
@@ -300,7 +282,7 @@ export default function SpaceShipShowcase(props: IAppProps) {
     const mouseAreaRef = canvasRef.current;
     const currentMesh = renderInstance.mesh[activeMesh as number];
     const layout = layoutRef.current;
-    renderInstance.mesh.forEach((mesh: THREE.Object3D, num: number) =>
+    planetsRef.current.forEach((mesh: THREE.Object3D, num: number) =>
       mesh.userData.setDetail(num === activeMesh)
     );
     markersRef.current?.setActive(activeMesh);

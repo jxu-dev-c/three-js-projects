@@ -1,7 +1,7 @@
 import * as React from "react";
+import { useEffect, useRef } from "react";
 import UI_DATA from "../UI_DATA.json";
 import AssetRoster from "./AssetRoster";
-import CommandKey from "./CommandKey";
 import DecodeText from "./DecodeText";
 import { StationEntry } from "../util/tactical/stations";
 
@@ -13,17 +13,34 @@ export interface BriefingPanelProps {
   onClose: () => void;
 }
 
-const HOME_COMMANDS = [
-  { text: "Investor Relations", icon: "ph:chart-line-up-duotone" },
-  { text: "Career", icon: "ph:briefcase-duotone" },
-  { text: "Our Mission", icon: "ph:rocket-launch-duotone" },
-];
-
-const PLANET_COMMANDS = [
-  { text: "Planet News", icon: "ph:newspaper-duotone" },
-  { text: "Planet Career", icon: "ph:briefcase-duotone" },
-  { text: "Contact Us", icon: "ph:phone-duotone" },
-];
+// the projection sways with the pointer so it reads as a plane in the scene, not a sticker on the glass
+function useParallax(ref: React.RefObject<HTMLElement>) {
+  useEffect(() => {
+    const rig = ref.current;
+    if (!rig || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const target = { x: 0, y: 0 };
+    const current = { x: 0, y: 0 };
+    let frame = 0;
+    const tick = () => {
+      current.x += (target.x - current.x) * 0.06;
+      current.y += (target.y - current.y) * 0.06;
+      rig.style.setProperty("--px", current.x.toFixed(4));
+      rig.style.setProperty("--py", current.y.toFixed(4));
+      const settled = Math.abs(target.x - current.x) + Math.abs(target.y - current.y) < 0.001;
+      frame = settled ? 0 : requestAnimationFrame(tick);
+    };
+    const onMove = (event: PointerEvent) => {
+      target.x = (event.clientX / window.innerWidth) * 2 - 1;
+      target.y = (event.clientY / window.innerHeight) * 2 - 1;
+      if (!frame) frame = requestAnimationFrame(tick);
+    };
+    window.addEventListener("pointermove", onMove);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      cancelAnimationFrame(frame);
+    };
+  }, [ref]);
+}
 
 export default function BriefingPanel({
   activePlanet,
@@ -33,109 +50,64 @@ export default function BriefingPanel({
   onClose,
 }: BriefingPanelProps) {
   const planet: any = UI_DATA["3D"].find((item) => item.objectNum === activePlanet);
-  const copies = planet?.copies ?? {};
   const hud = planet?.hud ?? {};
-  const isHome = activePlanet === 0;
-
-  const objectiveTitle = isHome ? copies.home_page_headline : copies.subtitle;
-  const objectiveBody = isHome ? copies.home_page_intro : copies.overall_introduction_location;
-  const commands = isHome ? HOME_COMMANDS : PLANET_COMMANDS;
   const site = focused?.data;
+  const rigRef = useRef<HTMLDivElement>(null);
+  useParallax(rigRef);
 
   return (
-    <aside className={`briefing hud-panel ${focused ? "is-open" : ""}`} aria-hidden={!focused}>
-      <header className="briefing__strip">
-        <div className="hud-readout">
-          <span className="hud-label">Site · {hud.operation}</span>
-          {site && <DecodeText key={site.id} className="briefing__op" text={site.id} duration={400} />}
-        </div>
-        <button type="button" className="briefing__close" onClick={onClose}>
-          <span className="hud-data">ESC</span> Close ✕
-        </button>
-      </header>
+    <>
+      <div className={`briefing-scrim ${focused ? "is-open" : ""}`} aria-hidden="true" />
+      <aside className={`briefing ${focused ? "is-open" : ""}`} aria-hidden={!focused}>
+        <div className="briefing__rig" ref={rigRef}>
+          <div className="briefing__plane">
+            <button type="button" className="briefing__close hud-data" onClick={onClose}>
+              ESC ✕
+            </button>
 
-      {site && (
-        <div className="briefing__body" key={site.id}>
-          <p className="hud-data briefing__coords power-on">
-            SECTOR {hud.sector} // {hud.code} · {site.readout.alt}
-          </p>
-          <DecodeText as="h1" className="briefing__title dot-matrix" text={site.name} />
+            <div className="briefing__scroll">
+              {site && (
+                <div className="briefing__body" key={site.id}>
+                  <p className="hud-data briefing__coords power-on">
+                    {site.id} · SECTOR {hud.sector} // {hud.code}
+                  </p>
+                  <DecodeText as="h1" className="briefing__title dot-matrix" text={site.name} />
 
-          <section className="briefing-section">
-            <header className="briefing-section__head">
-              <span className="hud-label">Site Profile</span>
-            </header>
-            <p className="briefing__copy">{site.description}</p>
-            <dl className="site-readout power-on" style={{ "--d": "450ms" } as React.CSSProperties}>
-              <div>
-                <dt className="hud-label">Designation</dt>
-                <dd>{site.id}</dd>
-              </div>
-              <div>
-                <dt className="hud-label">Class</dt>
-                <dd>{site.readout.class}</dd>
-              </div>
-              <div>
-                <dt className="hud-label">Location</dt>
-                <dd>{site.readout.alt}</dd>
-              </div>
-              <div>
-                <dt className="hud-label">Status</dt>
-                <dd className="site-readout__status">
-                  <span className="status-dot" />
-                  {site.readout.status}
-                </dd>
-              </div>
-              {(site.count ?? 1) > 1 && (
-                <div>
-                  <dt className="hud-label">Units</dt>
-                  <dd>{String(site.count).padStart(2, "0")}</dd>
+                  <dl className="site-readout power-on" style={{ "--d": "450ms" } as React.CSSProperties}>
+                    <div>
+                      <dt className="hud-label">Class</dt>
+                      <dd>{site.readout.class}</dd>
+                    </div>
+                    <div>
+                      <dt className="hud-label">Location</dt>
+                      <dd>{site.readout.alt}</dd>
+                    </div>
+                    <div>
+                      <dt className="hud-label">Status</dt>
+                      <dd className="site-readout__status">
+                        <span className="status-dot" />
+                        {site.readout.status}
+                      </dd>
+                    </div>
+                    {(site.count ?? 1) > 1 && (
+                      <div>
+                        <dt className="hud-label">Units</dt>
+                        <dd>{String(site.count).padStart(2, "0")}</dd>
+                      </div>
+                    )}
+                  </dl>
+
+                  {site.description && <p className="briefing__copy">{site.description}</p>}
+
+                  {entries.length > 1 && (
+                    <AssetRoster entries={entries} selectedId={site.id} onSelect={onSelect} />
+                  )}
                 </div>
               )}
-            </dl>
-          </section>
-
-          {entries.length > 1 && (
-            <AssetRoster entries={entries} selectedId={site.id} onSelect={onSelect} />
-          )}
-
-          <section className="briefing-section">
-            <header className="briefing-section__head">
-              <span className="hud-label">Sector Briefing</span>
-            </header>
-            {objectiveTitle && (
-              <h2 className="briefing__objective power-on" style={{ "--d": "600ms" } as React.CSSProperties}>
-                {objectiveTitle}
-              </h2>
-            )}
-            <div className="briefing__copy dd-html" dangerouslySetInnerHTML={{ __html: objectiveBody }} />
-          </section>
-
-          <div className="briefing__commands">
-            {commands.map((command, index) => (
-              <CommandKey
-                key={command.text}
-                icon={command.icon}
-                text={command.text}
-                code={`CMD-${String(index + 1).padStart(2, "0")}`}
-              />
-            ))}
+            </div>
           </div>
-
-          <section className="briefing-section">
-            <header className="briefing-section__head">
-              <span className="hud-label">Intel</span>
-            </header>
-            <div
-              className="briefing__copy briefing__copy--intel dd-html"
-              dangerouslySetInnerHTML={{ __html: copies.stations_detail_description }}
-            />
-            {isHome && (
-              <p className="briefing__outro dd-html" dangerouslySetInnerHTML={{ __html: copies.home_page_outtro }} />
-            )}
-          </section>
         </div>
-      )}
-    </aside>
+      </aside>
+    </>
   );
 }

@@ -101,10 +101,13 @@ export default function SpaceShipShowcase(props: IAppProps) {
 
   const LoadingObject = UI_DATA["2D"].Loader;
 
-  // Free screen regions for camera framing. Panel geometry mirrors index.css:
-  // desktop side panel (right 40px, width min(520px, 100vw - 80px), bottom
-  // 76px) and mobile bottom sheet (52vh tall, 16px from the bottom).
+  // Free screen regions for camera framing. On desktop the focused site and the
+  // briefing panel are composed as one group: subject left, panel beside it at
+  // the same height, the group biased left so the right of the screen stays
+  // open. The panel reads its position from the CSS variables set here; the
+  // mobile bottom sheet (52vh tall, 16px from the bottom) is laid out in CSS.
   const MOBILE_BREAKPOINT = 992;
+  const FOCUS_BOTTOM = 76;
   function updateFramingInsets() {
     const rig = rigRef.current;
     if (!rig) return;
@@ -118,10 +121,25 @@ export default function SpaceShipShowcase(props: IAppProps) {
         focus: { top: header + 8, right: 0, bottom: h * 0.52 + 24, left: 0 },
       });
     } else {
+      const regionHeight = h - header - FOCUS_BOTTOM;
+      const panelWidth = Math.min(460, w - 80);
+      // the rig sizes the subject's bounding radius to 0.4 of the region's short
+      // side; sprawling models (arms, panels) reach ~70% of that sphere
+      const subjectReach = regionHeight * 0.4 * 0.72;
+      const gap = 80;
+      const groupWidth = subjectReach * 2 + gap + panelWidth;
+      const subjectX = Math.max((w - groupWidth) * 0.42, 24) + subjectReach;
+      const centerY = header + regionHeight / 2;
       rig.setInsets({
         overview: { top: header, right: 0, bottom: 60, left: 0 },
-        focus: { top: header, right: Math.min(520, w - 80) + 60, bottom: 76, left: 0 },
+        // a region centred on subjectX puts the lens-shifted subject there
+        focus: { top: header, right: Math.max(w - subjectX * 2, 0), bottom: FOCUS_BOTTOM, left: 0 },
       });
+      const root = document.documentElement.style;
+      root.setProperty("--briefing-left", `${subjectX + subjectReach + gap}px`);
+      root.setProperty("--briefing-cy", `${centerY}px`);
+      root.setProperty("--briefing-max-h", `${regionHeight}px`);
+      root.setProperty("--briefing-cx", `${subjectX + subjectReach + gap + panelWidth / 2}px`);
     }
   }
 

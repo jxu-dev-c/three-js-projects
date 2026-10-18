@@ -46,13 +46,20 @@ import HudHeader from "./hud/HudHeader";
 import HudFrame from "./hud/HudFrame";
 import BriefingPanel from "./hud/BriefingPanel";
 import OpWindow from "./hud/OpWindow";
+import PowerUp from "./hud/PowerUp";
 import BootLoader from "./hud/BootLoader";
 
 export interface IAppProps {}
 
+// first-load power-up: total length, and when the op window lights (see .is-booting in index.css)
+const BOOT_SEQUENCE_MS = 2200;
+const OP_WINDOW_BOOT_MS = 1300;
+
 export default function SpaceShipShowcase(props: IAppProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [isInited, setIsInited] = useState(false);
+  // display power-up sequence that runs once, right after the boot loader
+  const [isBooting, setIsBooting] = useState(true);
   const [mouseMoveCoordinate, setMouseMoveCoordinate] = useState({
     x: 0,
     y: 0,
@@ -446,6 +453,12 @@ export default function SpaceShipShowcase(props: IAppProps) {
     setActiveMesh(index);
   }, []);
 
+  useEffect(() => {
+    if (!isInited) return;
+    const id = window.setTimeout(() => setIsBooting(false), BOOT_SEQUENCE_MS);
+    return () => window.clearTimeout(id);
+  }, [isInited]);
+
   const activePlanet = fetchPlanetObject(activeMesh);
   const registry: StationRegistry | undefined =
     renderInstance?.mesh[activeMesh]?.userData.stations;
@@ -459,10 +472,8 @@ export default function SpaceShipShowcase(props: IAppProps) {
     activeMesh === 0 ? "Pioneer Human Expansion in Space" : activePlanet?.copies?.tagline;
 
   return (
-    <section className="three-section">
-      <div
-        className={`loader-overlay ${isInited ? "first-load-animation" : ""}`}
-      ></div>
+    <section className={`three-section ${isInited && isBooting ? "is-booting" : ""}`}>
+      {isInited && isBooting && <PowerUp />}
       {isInited && (
         <HudFrame
           coordinate={mouseMoveCoordinate}
@@ -491,8 +502,8 @@ export default function SpaceShipShowcase(props: IAppProps) {
               years={activePlanet?.copies?.years}
               callToAction={activePlanet?.copies?.call_to_action}
               code={activePlanet?.hud?.code}
-              siteCount={stationEntries.length}
               hidden={!!focusedEntry}
+              bootDelay={isBooting ? OP_WINDOW_BOOT_MS : 0}
             />
             <BriefingPanel
               activePlanet={activeMesh}

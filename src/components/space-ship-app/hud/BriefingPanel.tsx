@@ -2,6 +2,7 @@ import * as React from "react";
 import UI_DATA from "../UI_DATA.json";
 import AssetRoster from "./AssetRoster";
 import CommandKey from "./CommandKey";
+import DecodeText from "./DecodeText";
 import { StationEntry } from "../util/tactical/stations";
 
 export interface BriefingPanelProps {
@@ -46,7 +47,7 @@ export default function BriefingPanel({
       <header className="briefing__strip">
         <div className="hud-readout">
           <span className="hud-label">Site · {hud.operation}</span>
-          <span className="briefing__op">{site?.id}</span>
+          {site && <DecodeText key={site.id} className="briefing__op" text={site.id} duration={400} />}
         </div>
         <button type="button" className="briefing__close" onClick={onClose}>
           <span className="hud-data">ESC</span> Close ✕
@@ -55,17 +56,17 @@ export default function BriefingPanel({
 
       {site && (
         <div className="briefing__body" key={site.id}>
-          <p className="hud-data briefing__coords">
+          <p className="hud-data briefing__coords power-on">
             SECTOR {hud.sector} // {hud.code} · {site.readout.alt}
           </p>
-          <h1 className="briefing__title dot-matrix">{site.name}</h1>
+          <DecodeText as="h1" className="briefing__title dot-matrix" text={site.name} />
 
           <section className="briefing-section">
             <header className="briefing-section__head">
               <span className="hud-label">Site Profile</span>
             </header>
             <p className="briefing__copy">{site.description}</p>
-            <dl className="site-readout">
+            <dl className="site-readout power-on" style={{ "--d": "450ms" } as React.CSSProperties}>
               <div>
                 <dt className="hud-label">Designation</dt>
                 <dd>{site.id}</dd>
@@ -102,7 +103,11 @@ export default function BriefingPanel({
             <header className="briefing-section__head">
               <span className="hud-label">Sector Briefing</span>
             </header>
-            {objectiveTitle && <h2 className="briefing__objective">{objectiveTitle}</h2>}
+            {objectiveTitle && (
+              <h2 className="briefing__objective power-on" style={{ "--d": "600ms" } as React.CSSProperties}>
+                {objectiveTitle}
+              </h2>
+            )}
             <div className="briefing__copy dd-html" dangerouslySetInnerHTML={{ __html: objectiveBody }} />
           </section>
 

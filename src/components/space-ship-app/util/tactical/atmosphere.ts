@@ -7,8 +7,8 @@ export function createSurfaceAtmosphere(
   {
     thickness = 0.035,
     opacity = 0.55,
-    tint = new THREE.Color(0x76baff),
-    sunsetTint = new THREE.Color(0xf1bb93),
+    tint = new THREE.Color(0x8fa3b4),
+    sunsetTint = new THREE.Color(0xd6b89c),
   } = {}
 ) {
   const radius = planetRadius * (1 + thickness);

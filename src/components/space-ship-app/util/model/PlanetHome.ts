@@ -65,8 +65,8 @@ export const HomePlanet = async (
   group.add(surface, cloudsMesh, createSurfaceAtmosphere(RADIUS, {
     thickness: 0.045,
     opacity: 0.48,
-    tint: new THREE.Color(0x8cb5df),
-    sunsetTint: new THREE.Color(0xe8b998),
+    tint: new THREE.Color(0x97a8b6),
+    sunsetTint: new THREE.Color(0xcfb69e),
   }), createOrbitalPlane(RADIUS));
   group.position.set(Px, Py, Pz);
 

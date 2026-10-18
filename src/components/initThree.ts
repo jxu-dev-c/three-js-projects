@@ -51,7 +51,7 @@ export const initThree = async ({
     composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
     composer.addPass(
-      new UnrealBloomPass(new THREE.Vector2(width, height), 0.7, 0.35, 0.95)
+      new UnrealBloomPass(new THREE.Vector2(width, height), 0.55, 0.35, 0.95)
     );
     composer.addPass(new OutputPass());
   }

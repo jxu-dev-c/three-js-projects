@@ -115,7 +115,7 @@ export function toHologram<T extends THREE.Object3D>(
   return root;
 }
 
-const ACCENT_LINE = glow(COLOR.accent, 1.25);
+const ACCENT_LINE = glow(COLOR.accent, 0.95);
 const BASE_LINE_OPACITY = 0.45;
 
 export function setLineFade(root: THREE.Object3D, fade: number) {
@@ -128,5 +128,5 @@ export function setHighlight(root: THREE.Object3D, on: boolean) {
   if (!state) return;
   state.lineMat.color.copy(on ? ACCENT_LINE : state.baseLine);
   state.fillMat.color.copy(on ? COLOR.accent : state.baseFill);
-  state.fillMat.opacity = on ? Math.max(state.baseOpacity * 2, 0.18) : state.baseOpacity;
+  state.fillMat.opacity = on ? Math.max(state.baseOpacity * 1.6, 0.12) : state.baseOpacity;
 }

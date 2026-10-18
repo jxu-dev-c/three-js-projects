@@ -2,11 +2,11 @@ import * as THREE from "three";
 
 // Shared tactical palette — mirrors the CSS tokens in index.css
 export const HEX = {
-  ice: "#dbe9ff",
-  steel: "#8fb3d9",
-  steelDeep: "#3d5a80",
-  accent: "#ff7a2f",
-  ok: "#7fe0b0",
+  ice: "#c3ccd3",
+  steel: "#8b98a3",
+  steelDeep: "#3a4550",
+  accent: "#c49a52",
+  ok: "#94ab9c",
 };
 
 export const COLOR = {

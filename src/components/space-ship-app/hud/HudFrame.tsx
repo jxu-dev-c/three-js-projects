@@ -29,7 +29,7 @@ export default function HudFrame({ coordinate, sector, assetCount = 0 }: HudFram
           X {fmt(coordinate.x)} Y {fmt(-coordinate.y)}
         </span>
         <span className="hud-data">ASSETS {String(assetCount).padStart(2, "0")}</span>
-        <span className="hud-data hud-data--ok">● SESSION ONLINE</span>
+        <span className="hud-data hud-data--ok">■ LINK ESTABLISHED</span>
       </div>
     </div>
   );

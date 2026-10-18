@@ -126,8 +126,8 @@ export function createSystemMarkers(scene: THREE.Scene, layout: Record<number, B
     tag.position.y = -radius;
     star.add(tag);
   };
-  addStar(new THREE.Vector3(), 18, new THREE.Color(4, 3.3, 2.4), "SOL");
-  addStar(layout[0].star, 8, new THREE.Color(4, 1.5, 0.8), "PROXIMA CENTAURI");
+  addStar(new THREE.Vector3(), 18, new THREE.Color(3.6, 3.3, 2.9), "SOL");
+  addStar(layout[0].star, 8, new THREE.Color(3.4, 2.3, 1.6), "PROXIMA CENTAURI");
 
   const beacons = Object.values(layout).map((b) => {
     const el = document.createElement("button");
